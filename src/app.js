@@ -1,6 +1,7 @@
 import express from 'express';
 import healthRoutes from './routes/health.routes.js';
 import webhookRoutes from './routes/webhook.routes.js';
+import devRoutes from './routes/dev.routes.js';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware.js';
 
 const app = express();
@@ -18,6 +19,8 @@ app.disable('x-powered-by');
 // ---------------------------------------------------------------------------
 app.use(healthRoutes);
 app.use(webhookRoutes);
+app.use('/api/dev', devRoutes);
+
 
 // ---------------------------------------------------------------------------
 // Error handling (must be registered last)
