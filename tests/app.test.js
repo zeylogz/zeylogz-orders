@@ -30,10 +30,10 @@ describe('Health endpoint', () => {
   });
 });
 
-describe('Webhook stubs', () => {
-  it('GET /webhook returns 200', async () => {
+describe('Webhook verification & handling', () => {
+  it('GET /webhook returns 403 without verify token', async () => {
     const res = await fetch(`${baseUrl}/webhook`);
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(403);
   });
 
   it('POST /webhook returns 200', async () => {
@@ -45,6 +45,7 @@ describe('Webhook stubs', () => {
     expect(res.status).toBe(200);
   });
 });
+
 
 describe('Error handling', () => {
   it('unknown route returns 404', async () => {
