@@ -34,8 +34,8 @@ export function getOrCreateSession(restaurantId, whatsappNumber, db = getDb()) {
   // Create new session
   const result = db.prepare(`
     INSERT INTO conversation_sessions
-      (restaurant_id, whatsapp_number, state, cart_data, context_data, expires_at)
-    VALUES (?, ?, 'WELCOME', '[]', '{}', datetime('now', '+${SESSION_TTL_HOURS} hours'))
+      (restaurant_id, whatsapp_number, state, language, cart_data, context_data, expires_at)
+    VALUES (?, ?, 'WELCOME', 'en', '[]', '{}', datetime('now', '+${SESSION_TTL_HOURS} hours'))
   `).run(restaurantId, whatsappNumber);
 
   logger.debug('New session created', { restaurantId, whatsappNumber });
@@ -46,16 +46,18 @@ export function getOrCreateSession(restaurantId, whatsappNumber, db = getDb()) {
     whatsapp_number: whatsappNumber,
     customer_id: null,
     state: 'WELCOME',
+    language: 'en',
     cart: [],
     context: {},
   };
 }
 
+
 /**
  * Update session state, cart, and context.
  */
 export function updateSession(sessionId, updates, db = getDb()) {
-  const { state, cart, context, customerId } = updates;
+  const { state, language, cart, context, customerId } = updates;
 
   const sets = [];
   const params = [];
@@ -63,6 +65,10 @@ export function updateSession(sessionId, updates, db = getDb()) {
   if (state !== undefined) {
     sets.push('state = ?');
     params.push(state);
+  }
+  if (language !== undefined) {
+    sets.push('language = ?');
+    params.push(language);
   }
   if (cart !== undefined) {
     sets.push('cart_data = ?');
@@ -115,10 +121,12 @@ function parseSession(row) {
     whatsapp_number: row.whatsapp_number,
     customer_id: row.customer_id,
     state: row.state,
+    language: row.language || 'en',
     cart: safeJsonParse(row.cart_data, []),
     context: safeJsonParse(row.context_data, {}),
   };
 }
+
 
 function safeJsonParse(str, fallback) {
   try {

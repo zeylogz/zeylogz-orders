@@ -52,11 +52,13 @@ router.post('/message', (req, res, next) => {
       phoneNumber,
       restaurantId,
       currentState: result.session ? result.session.state : null,
+      language: result.session ? result.session.language : 'en',
       cart: result.session ? result.session.cart : [],
       replies: result.replies,
       ownerNotification: result.ownerNotification,
       order: result.order,
     });
+
   } catch (err) {
     next(err);
   }

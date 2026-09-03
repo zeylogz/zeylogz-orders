@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS menu_categories (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
   restaurant_id   INTEGER NOT NULL,
   name            TEXT    NOT NULL,
+  name_si         TEXT    DEFAULT '',
   emoji           TEXT    DEFAULT '',
   display_order   INTEGER NOT NULL DEFAULT 0,
   is_active       INTEGER NOT NULL DEFAULT 1,
@@ -54,7 +55,9 @@ CREATE TABLE IF NOT EXISTS menu_items (
   restaurant_id   INTEGER NOT NULL,
   category_id     INTEGER NOT NULL,
   name            TEXT    NOT NULL,
+  name_si         TEXT    DEFAULT '',
   description     TEXT    DEFAULT '',
+  description_si  TEXT    DEFAULT '',
   price           INTEGER NOT NULL,
   image_url       TEXT    DEFAULT '',
   is_available    INTEGER NOT NULL DEFAULT 1,
@@ -65,6 +68,7 @@ CREATE TABLE IF NOT EXISTS menu_items (
   FOREIGN KEY (category_id)   REFERENCES menu_categories(id) ON DELETE CASCADE
 );
 
+
 -- ---------------------------------------------------------------------------
 -- Customers
 -- ---------------------------------------------------------------------------
@@ -73,6 +77,7 @@ CREATE TABLE IF NOT EXISTS customers (
   restaurant_id   INTEGER NOT NULL,
   whatsapp_number TEXT    NOT NULL,
   name            TEXT    DEFAULT '',
+  language        TEXT    NOT NULL DEFAULT 'en',
   created_at      TEXT    NOT NULL DEFAULT (datetime('now')),
   updated_at      TEXT    NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (restaurant_id) REFERENCES restaurants(id) ON DELETE CASCADE,
@@ -133,6 +138,7 @@ CREATE TABLE IF NOT EXISTS conversation_sessions (
   customer_id     INTEGER,
   whatsapp_number TEXT    NOT NULL,
   state           TEXT    NOT NULL DEFAULT 'WELCOME',
+  language        TEXT    NOT NULL DEFAULT 'en',
   cart_data       TEXT    NOT NULL DEFAULT '[]',
   context_data    TEXT    NOT NULL DEFAULT '{}',
   expires_at      TEXT    NOT NULL DEFAULT (datetime('now', '+24 hours')),
@@ -141,6 +147,7 @@ CREATE TABLE IF NOT EXISTS conversation_sessions (
   FOREIGN KEY (restaurant_id) REFERENCES restaurants(id) ON DELETE CASCADE,
   FOREIGN KEY (customer_id)   REFERENCES customers(id) ON DELETE SET NULL
 );
+
 
 -- ---------------------------------------------------------------------------
 -- Processed Messages (idempotency)

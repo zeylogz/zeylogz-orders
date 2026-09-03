@@ -399,4 +399,117 @@ describe('Conversation State Machine', () => {
     expect(invalidRes.replies[0].body).toContain("didn't understand");
     expect(invalidRes.replies[1].type).toBe('list');
   });
+
+  describe('Bilingual (English / Sinhala) Support', () => {
+    it('switches language between English and Sinhala via buttons and text', () => {
+      const phone = '94776655443';
+
+      // 1. Send Hi (defaults to English)
+      const res1 = handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, text: 'Hi' }, db);
+      expect(res1.replies[0].body).toContain('Welcome to *Urban Bites*!');
+      expect(res1.replies[0].buttons).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ id: 'action_lang_si', title: '🇱🇰 සිංහල' }),
+        ])
+      );
+
+      // 2. Switch to Sinhala via button
+      const res2 = handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, buttonId: 'action_lang_si' }, db);
+      expect(res2.session.language).toBe('si');
+      expect(res2.replies[0].body).toContain('*Urban Bites* වෙත සාදරයෙන් පිළිගනිමු!');
+      expect(res2.replies[0].buttons).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ id: 'action_menu', title: '🍔 මෙනුව බලන්න' }),
+          expect.objectContaining({ id: 'action_lang_en', title: '🇬🇧 English' }),
+        ])
+      );
+
+      // 3. Switch back to English via text "english"
+      const res3 = handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, text: 'english' }, db);
+      expect(res3.session.language).toBe('en');
+      expect(res3.replies[0].body).toContain('Welcome to *Urban Bites*!');
+    });
+
+    it('completes an entire ordering journey in Sinhala (සිංහල)', () => {
+      const phone = '94771122998';
+
+      // Start in Sinhala
+      handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, buttonId: 'action_lang_si' }, db);
+
+      // 1. View Menu in Sinhala
+      const menuRes = handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, buttonId: 'action_menu' }, db);
+      expect(menuRes.replies[0].body).toContain('අපගේ මෙනුව');
+      expect(menuRes.session.state).toBe('CATEGORY_SELECTION');
+
+      // 2. Select Burgers category
+      const catRes = handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, listRowId: 'category_1' }, db);
+      expect(catRes.session.state).toBe('ITEM_SELECTION');
+      expect(catRes.replies[0].body).toContain('බර්ගර්');
+
+      // 3. Select Cheese Burger
+      const itemRes = handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, listRowId: 'item_3' }, db);
+      expect(itemRes.session.state).toBe('ITEM_QUANTITY');
+      expect(itemRes.replies[0].body).toContain('චීස් බර්ගර්');
+      expect(itemRes.replies[0].body).toContain('රු. 950');
+      expect(itemRes.replies[0].body).toContain('ඔබට කීයක් අවශ්‍යද?');
+
+      // 4. Quantity 2
+      const qtyRes = handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, buttonId: 'qty_2' }, db);
+      expect(qtyRes.session.state).toBe('CART');
+      expect(qtyRes.replies[0].body).toContain('*චීස් බර්ගර්* 2ක් බෑගයට එකතු කළා!');
+      expect(qtyRes.replies[0].body).toContain('එකතුව: රු. 1,900');
+
+
+      // 5. Checkout
+      const checkoutRes = handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, buttonId: 'action_checkout' }, db);
+      expect(checkoutRes.session.state).toBe('CUSTOMER_NAME');
+      expect(checkoutRes.replies[0].body).toContain('කරුණාකර ඔබගේ නම ටයිප් කරන්න');
+
+      // 6. Name
+      const nameRes = handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, text: 'කමල් පෙරේරා' }, db);
+      expect(nameRes.session.state).toBe('ORDER_TYPE');
+      expect(nameRes.replies[0].body).toContain('ඔබ ඇණවුම ලබාගන්නේ කෙසේද?');
+
+      // 7. Delivery
+      const typeRes = handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, buttonId: 'type_delivery' }, db);
+      expect(typeRes.session.state).toBe('DELIVERY_ADDRESS');
+      expect(typeRes.replies[0].body).toContain('කරුණාකර ඔබගේ ඩිලිවරි ලිපිනය ටයිප් කරන්න');
+
+      // 8. Address
+      const addrRes = handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, text: '42 ගාලු පාර, කොළඹ 03' }, db);
+      expect(addrRes.session.state).toBe('NOTES');
+      expect(addrRes.replies[0].body).toContain('විශේෂ සටහනක් තිබේද?');
+
+      // 9. Skip notes
+      const notesRes = handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, buttonId: 'notes_skip' }, db);
+      expect(notesRes.session.state).toBe('PAYMENT_METHOD');
+      expect(notesRes.replies[0].body).toContain('ඔබ මුදල් ගෙවීමට කැමති කෙසේද?');
+
+      // 10. LankaQR
+      const payRes = handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, buttonId: 'pay_lankaqr' }, db);
+      expect(payRes.session.state).toBe('ORDER_CONFIRMATION');
+      expect(payRes.replies[0].body).toContain('ඇණවුම් සාරාංශය');
+      expect(payRes.replies[0].body).toContain('මුළු එකතුව: රු. 2,200');
+      expect(payRes.replies[0].body).toContain('කමල් පෙරේරා');
+      expect(payRes.replies[0].body).toContain('ඩිලිවරි');
+      expect(payRes.replies[0].body).toContain('ලංකා QR');
+
+      // 11. Confirm order
+      const confirmRes = handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, buttonId: 'confirm_yes' }, db);
+      expect(confirmRes.replies).toHaveLength(2);
+      expect(confirmRes.replies[0].body).toContain('ඔබගේ ඇණවුම සාර්ථකව ලැබුණා!');
+      expect(confirmRes.replies[0].body).toContain('රු. 2,200');
+
+      // LankaQR instructions in Sinhala
+      expect(confirmRes.replies[1].body).toContain('ලංකා QR ගෙවීම');
+      expect(confirmRes.replies[1].body).toContain('Commercial Bank of Ceylon');
+      expect(confirmRes.replies[1].body).toContain('1000456789');
+
+      // Order persisted in DB
+      expect(confirmRes.order).not.toBeNull();
+      expect(confirmRes.order.total).toBe(2200);
+      expect(confirmRes.order.customerName).toBe('කමල් පෙරේරා');
+    });
+  });
 });
+

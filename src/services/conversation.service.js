@@ -12,8 +12,8 @@ import { findOrCreateCustomer, createOrder } from './order.service.js';
 import { getOrCreateSession, updateSession, resetSession } from './session.service.js';
 import * as formatters from './message.formatter.js';
 import { generateLankaQrPayload } from './lankaqr.service.js';
+import { t } from '../utils/i18n.js';
 import { logger } from '../utils/logger.js';
-
 
 /**
  * Handle an incoming message from a customer.
@@ -45,19 +45,46 @@ export function handleIncomingMessage(params, db = getDb()) {
   }
 
   const session = getOrCreateSession(restaurantId, fromPhone, db);
+  const lang = session.language || 'en';
+
   logger.info('Handling conversation step', {
     restaurantId,
     fromPhone,
     currentState: session.state,
+    language: lang,
     actionId,
     rawText,
   });
 
-  // Global commands (restart / reset)
   const lowerText = rawText.toLowerCase();
+
+  // Language switch shortcuts (can be tapped or typed anywhere)
+  if (actionId === 'action_lang_si' || lowerText === 'sinhala' || lowerText === 'සිංහල') {
+    updateSession(session.id, { language: 'si' }, db);
+    session.language = 'si';
+    return {
+      replies: [formatters.welcomeMessage(restaurant.name, 'si')],
+      ownerNotification: null,
+      session,
+      order: null,
+    };
+  }
+
+  if (actionId === 'action_lang_en' || lowerText === 'english' || lowerText === 'en') {
+    updateSession(session.id, { language: 'en' }, db);
+    session.language = 'en';
+    return {
+      replies: [formatters.welcomeMessage(restaurant.name, 'en')],
+      ownerNotification: null,
+      session,
+      order: null,
+    };
+  }
+
+  // Global commands (restart / reset)
   if (actionId === 'action_reset' || lowerText === 'reset' || lowerText === 'restart' || lowerText === 'start over') {
     const reset = resetSession(session.id, db);
-    const welcome = formatters.welcomeMessage(restaurant.name);
+    const welcome = formatters.welcomeMessage(restaurant.name, lang);
     return {
       replies: [welcome],
       ownerNotification: null,
@@ -69,24 +96,24 @@ export function handleIncomingMessage(params, db = getDb()) {
   // Global "menu" or "cart" shortcuts (only when not in middle of text input states)
   const textInputStates = ['CUSTOMER_NAME', 'DELIVERY_ADDRESS', 'TABLE_NUMBER', 'NOTES'];
   if (!textInputStates.includes(session.state)) {
-    if (actionId === 'action_menu' || lowerText === 'menu') {
+    if (actionId === 'action_menu' || lowerText === 'menu' || lowerText === 'මෙනුව' || lowerText === 'මෙනුව බලන්න') {
       const categories = getCategories(restaurantId, db);
       updateSession(session.id, { state: 'CATEGORY_SELECTION' }, db);
       session.state = 'CATEGORY_SELECTION';
       return {
-        replies: [formatters.categoryListMessage(categories)],
+        replies: [formatters.categoryListMessage(categories, lang)],
         ownerNotification: null,
         session,
         order: null,
       };
     }
 
-    if (actionId === 'action_cart' || lowerText === 'cart' || lowerText === 'view cart') {
+    if (actionId === 'action_cart' || lowerText === 'cart' || lowerText === 'view cart' || lowerText === 'බෑගය' || lowerText === 'මගේ බෑගය') {
       const subtotal = calculateSubtotal(session.cart);
       updateSession(session.id, { state: 'CART' }, db);
       session.state = 'CART';
       return {
-        replies: [formatters.cartMessage(session.cart, subtotal)],
+        replies: [formatters.cartMessage(session.cart, subtotal, lang)],
         ownerNotification: null,
         session,
         order: null,
@@ -132,13 +159,12 @@ export function handleIncomingMessage(params, db = getDb()) {
     case 'ORDER_CONFIRMATION':
       return handleOrderConfirmationState(restaurant, session, actionId, rawText, db);
 
-
     default: {
       // Fallback: reset to welcome
       updateSession(session.id, { state: 'WELCOME' }, db);
       session.state = 'WELCOME';
       return {
-        replies: [formatters.welcomeMessage(restaurant.name)],
+        replies: [formatters.welcomeMessage(restaurant.name, lang)],
         ownerNotification: null,
         session,
         order: null,
@@ -152,26 +178,27 @@ export function handleIncomingMessage(params, db = getDb()) {
 // ---------------------------------------------------------------------------
 
 function handleWelcomeState(restaurant, session, actionId, rawText, db) {
+  const lang = session.language || 'en';
   const lower = rawText.toLowerCase();
 
-  if (actionId === 'action_menu' || lower === 'menu' || lower === '1' || lower === 'view menu' || lower === 'order') {
+  if (actionId === 'action_menu' || lower === 'menu' || lower === '1' || lower === 'view menu' || lower === 'order' || lower === 'මෙනුව' || lower === 'මෙනුව බලන්න') {
     const categories = getCategories(restaurant.id, db);
     updateSession(session.id, { state: 'CATEGORY_SELECTION' }, db);
     session.state = 'CATEGORY_SELECTION';
     return {
-      replies: [formatters.categoryListMessage(categories)],
+      replies: [formatters.categoryListMessage(categories, lang)],
       ownerNotification: null,
       session,
       order: null,
     };
   }
 
-  if (actionId === 'action_cart' || lower === 'cart' || lower === '2' || lower === 'view cart') {
+  if (actionId === 'action_cart' || lower === 'cart' || lower === '2' || lower === 'view cart' || lower === 'බෑගය' || lower === 'මගේ බෑගය') {
     const subtotal = calculateSubtotal(session.cart);
     updateSession(session.id, { state: 'CART' }, db);
     session.state = 'CART';
     return {
-      replies: [formatters.cartMessage(session.cart, subtotal)],
+      replies: [formatters.cartMessage(session.cart, subtotal, lang)],
       ownerNotification: null,
       session,
       order: null,
@@ -180,7 +207,7 @@ function handleWelcomeState(restaurant, session, actionId, rawText, db) {
 
   // Any greeting or first message ("hi", "hello", etc.)
   return {
-    replies: [formatters.welcomeMessage(restaurant.name)],
+    replies: [formatters.welcomeMessage(restaurant.name, lang)],
     ownerNotification: null,
     session,
     order: null,
@@ -188,18 +215,22 @@ function handleWelcomeState(restaurant, session, actionId, rawText, db) {
 }
 
 function handleCategorySelectionState(restaurant, session, actionId, rawText, db) {
+  const lang = session.language || 'en';
   const categories = getCategories(restaurant.id, db);
 
   let categoryId = null;
   if (actionId.startsWith('category_')) {
     categoryId = parseInt(actionId.replace('category_', ''), 10);
   } else {
-    // Try matching typed text to category name or 1-based index
+    // Try matching typed text to category name (English or Sinhala) or 1-based index
     const index = parseInt(rawText, 10);
     if (!isNaN(index) && index >= 1 && index <= categories.length) {
       categoryId = categories[index - 1].id;
     } else {
-      const match = categories.find((c) => c.name.toLowerCase() === rawText.toLowerCase());
+      const match = categories.find((c) => 
+        c.name.toLowerCase() === rawText.toLowerCase() ||
+        (c.name_si && c.name_si.toLowerCase() === rawText.toLowerCase())
+      );
       if (match) categoryId = match.id;
     }
   }
@@ -208,8 +239,8 @@ function handleCategorySelectionState(restaurant, session, actionId, rawText, db
   if (!category) {
     return {
       replies: [
-        formatters.invalidInputMessage('Please select one of the categories below:'),
-        formatters.categoryListMessage(categories),
+        formatters.invalidInputMessage(t('choose_category', lang), lang),
+        formatters.categoryListMessage(categories, lang),
       ],
       ownerNotification: null,
       session,
@@ -221,8 +252,8 @@ function handleCategorySelectionState(restaurant, session, actionId, rawText, db
   if (items.length === 0) {
     return {
       replies: [
-        formatters.invalidInputMessage(`No items currently available in ${category.name}.`),
-        formatters.categoryListMessage(categories),
+        formatters.invalidInputMessage(t('no_items', lang), lang),
+        formatters.categoryListMessage(categories, lang),
       ],
       ownerNotification: null,
       session,
@@ -235,8 +266,9 @@ function handleCategorySelectionState(restaurant, session, actionId, rawText, db
   session.state = 'ITEM_SELECTION';
   session.context = context;
 
+  const catName = (lang === 'si' && category.name_si) ? category.name_si : category.name;
   return {
-    replies: [formatters.itemListMessage(category.name, category.emoji || '🍽', items)],
+    replies: [formatters.itemListMessage(catName, category.emoji || '🍽', items, lang)],
     ownerNotification: null,
     session,
     order: null,
@@ -244,6 +276,7 @@ function handleCategorySelectionState(restaurant, session, actionId, rawText, db
 }
 
 function handleItemSelectionState(restaurant, session, actionId, rawText, db) {
+  const lang = session.language || 'en';
   const categoryId = session.context.selectedCategoryId;
   const items = categoryId ? getItemsByCategory(restaurant.id, categoryId, db) : [];
 
@@ -255,7 +288,10 @@ function handleItemSelectionState(restaurant, session, actionId, rawText, db) {
     if (!isNaN(index) && index >= 1 && index <= items.length) {
       itemId = items[index - 1].id;
     } else {
-      const match = items.find((i) => i.name.toLowerCase() === rawText.toLowerCase());
+      const match = items.find((i) => 
+        i.name.toLowerCase() === rawText.toLowerCase() ||
+        (i.name_si && i.name_si.toLowerCase() === rawText.toLowerCase())
+      );
       if (match) itemId = match.id;
     }
   }
@@ -263,10 +299,11 @@ function handleItemSelectionState(restaurant, session, actionId, rawText, db) {
   const item = itemId ? getAvailableItem(restaurant.id, itemId, db) : null;
   if (!item) {
     const category = categoryId ? getCategoryById(restaurant.id, categoryId, db) : null;
+    const catName = (lang === 'si' && category?.name_si) ? category.name_si : (category?.name || 'Menu');
     return {
       replies: [
-        formatters.invalidInputMessage('Please select an item from the list:'),
-        formatters.itemListMessage(category?.name || 'Menu', category?.emoji || '🍽', items),
+        formatters.invalidInputMessage(t('choose_item', lang), lang),
+        formatters.itemListMessage(catName, category?.emoji || '🍽', items, lang),
       ],
       ownerNotification: null,
       session,
@@ -279,8 +316,9 @@ function handleItemSelectionState(restaurant, session, actionId, rawText, db) {
   session.state = 'ITEM_QUANTITY';
   session.context = context;
 
+  const itemName = (lang === 'si' && item.name_si) ? item.name_si : item.name;
   return {
-    replies: [formatters.quantityMessage(item.name, item.price)],
+    replies: [formatters.quantityMessage(itemName, item.price, lang)],
     ownerNotification: null,
     session,
     order: null,
@@ -288,6 +326,7 @@ function handleItemSelectionState(restaurant, session, actionId, rawText, db) {
 }
 
 function handleItemQuantityState(restaurant, session, actionId, rawText, db) {
+  const lang = session.language || 'en';
   const itemId = session.context.selectedItemId;
   const item = itemId ? getAvailableItem(restaurant.id, itemId, db) : null;
 
@@ -297,8 +336,8 @@ function handleItemQuantityState(restaurant, session, actionId, rawText, db) {
     session.state = 'CATEGORY_SELECTION';
     return {
       replies: [
-        formatters.itemUnavailableMessage(),
-        formatters.categoryListMessage(categories),
+        formatters.itemUnavailableMessage(lang),
+        formatters.categoryListMessage(categories, lang),
       ],
       ownerNotification: null,
       session,
@@ -316,11 +355,13 @@ function handleItemQuantityState(restaurant, session, actionId, rawText, db) {
     }
   }
 
+  const itemName = (lang === 'si' && item.name_si) ? item.name_si : item.name;
+
   if (!quantity) {
     return {
       replies: [
-        formatters.invalidInputMessage('Please select or type a quantity between 1 and 99:'),
-        formatters.quantityMessage(item.name, item.price),
+        formatters.invalidInputMessage(t('valid_qty_error', lang), lang),
+        formatters.quantityMessage(itemName, item.price, lang),
       ],
       ownerNotification: null,
       session,
@@ -329,7 +370,12 @@ function handleItemQuantityState(restaurant, session, actionId, rawText, db) {
   }
 
   // Add to cart
-  const updatedCart = addToCart(session.cart, item, quantity);
+  const cartItem = {
+    id: item.id,
+    name: itemName,
+    price: item.price,
+  };
+  const updatedCart = addToCart(session.cart, cartItem, quantity);
   const subtotal = calculateSubtotal(updatedCart);
 
   // Clear selectedItemId from context
@@ -342,7 +388,7 @@ function handleItemQuantityState(restaurant, session, actionId, rawText, db) {
   session.context = context;
 
   return {
-    replies: [formatters.itemAddedMessage(item.name, quantity, updatedCart, subtotal)],
+    replies: [formatters.itemAddedMessage(itemName, quantity, updatedCart, subtotal, lang)],
     ownerNotification: null,
     session,
     order: null,
@@ -350,40 +396,41 @@ function handleItemQuantityState(restaurant, session, actionId, rawText, db) {
 }
 
 function handleCartState(restaurant, session, actionId, rawText, db) {
+  const lang = session.language || 'en';
   const lower = rawText.toLowerCase();
 
-  if (actionId === 'action_add_more' || lower === 'add more' || lower === 'more' || lower === '1') {
+  if (actionId === 'action_add_more' || lower === 'add more' || lower === 'more' || lower === '1' || lower === 'තව' || lower === 'තව එකතු කරන්න') {
     const categories = getCategories(restaurant.id, db);
     updateSession(session.id, { state: 'CATEGORY_SELECTION' }, db);
     session.state = 'CATEGORY_SELECTION';
     return {
-      replies: [formatters.categoryListMessage(categories)],
+      replies: [formatters.categoryListMessage(categories, lang)],
       ownerNotification: null,
       session,
       order: null,
     };
   }
 
-  if (actionId === 'action_clear_cart' || lower === 'clear' || lower === 'clear cart' || lower === '2') {
+  if (actionId === 'action_clear_cart' || lower === 'clear' || lower === 'clear cart' || lower === '2' || lower === 'ඉවත් කරන්න') {
     const emptyCart = clearCart();
     updateSession(session.id, { state: 'WELCOME', cart: emptyCart }, db);
     session.state = 'WELCOME';
     session.cart = emptyCart;
     return {
-      replies: [formatters.cartClearedMessage()],
+      replies: [formatters.cartClearedMessage(lang)],
       ownerNotification: null,
       session,
       order: null,
     };
   }
 
-  if (actionId === 'action_checkout' || lower === 'checkout' || lower === 'check out' || lower === '3' || lower === 'buy') {
+  if (actionId === 'action_checkout' || lower === 'checkout' || lower === 'check out' || lower === '3' || lower === 'buy' || lower === 'ඇණවුම් කරන්න' || lower === 'ගෙවන්න') {
     if (isCartEmpty(session.cart)) {
       const categories = getCategories(restaurant.id, db);
       return {
         replies: [
-          formatters.invalidInputMessage('Your cart is empty! Browse the menu first:'),
-          formatters.categoryListMessage(categories),
+          formatters.invalidInputMessage(t('cart_empty', lang), lang),
+          formatters.categoryListMessage(categories, lang),
         ],
         ownerNotification: null,
         session,
@@ -399,8 +446,8 @@ function handleCartState(restaurant, session, actionId, rawText, db) {
       const categories = getCategories(restaurant.id, db);
       return {
         replies: [
-          formatters.invalidInputMessage('Sorry, items in your cart are no longer available.'),
-          formatters.categoryListMessage(categories),
+          formatters.invalidInputMessage(t('item_unavailable', lang), lang),
+          formatters.categoryListMessage(categories, lang),
         ],
         ownerNotification: null,
         session,
@@ -417,7 +464,7 @@ function handleCartState(restaurant, session, actionId, rawText, db) {
     updateSession(session.id, { state: 'CUSTOMER_NAME' }, db);
     session.state = 'CUSTOMER_NAME';
     return {
-      replies: [formatters.askCustomerNameMessage()],
+      replies: [formatters.askCustomerNameMessage(lang)],
       ownerNotification: null,
       session,
       order: null,
@@ -428,8 +475,8 @@ function handleCartState(restaurant, session, actionId, rawText, db) {
   const subtotal = calculateSubtotal(session.cart);
   return {
     replies: [
-      formatters.invalidInputMessage('Please choose an action:'),
-      formatters.cartMessage(session.cart, subtotal),
+      formatters.invalidInputMessage(t('valid_action_error', lang), lang),
+      formatters.cartMessage(session.cart, subtotal, lang),
     ],
     ownerNotification: null,
     session,
@@ -438,11 +485,12 @@ function handleCartState(restaurant, session, actionId, rawText, db) {
 }
 
 function handleCustomerNameState(restaurant, session, actionId, rawText, db) {
+  const lang = session.language || 'en';
   const name = rawText.trim();
   if (!name || name.length < 2) {
     return {
       replies: [
-        formatters.invalidInputMessage('Please enter a valid name (at least 2 characters):'),
+        formatters.invalidInputMessage(t('valid_name_error', lang), lang),
       ],
       ownerNotification: null,
       session,
@@ -450,7 +498,6 @@ function handleCustomerNameState(restaurant, session, actionId, rawText, db) {
     };
   }
 
-  // Save customer and context
   const customer = findOrCreateCustomer(restaurant.id, session.whatsapp_number, name, db);
   const context = { ...session.context, customerName: name, customerId: customer.id };
 
@@ -460,7 +507,7 @@ function handleCustomerNameState(restaurant, session, actionId, rawText, db) {
   session.customer_id = customer.id;
 
   return {
-    replies: [formatters.askOrderTypeMessage()],
+    replies: [formatters.askOrderTypeMessage(lang)],
     ownerNotification: null,
     session,
     order: null,
@@ -468,22 +515,23 @@ function handleCustomerNameState(restaurant, session, actionId, rawText, db) {
 }
 
 function handleOrderTypeState(restaurant, session, actionId, rawText, db) {
+  const lang = session.language || 'en';
   const lower = rawText.toLowerCase();
 
   let orderType = null;
-  if (actionId === 'type_delivery' || lower === 'delivery' || lower === '1') {
+  if (actionId === 'type_delivery' || lower === 'delivery' || lower === '1' || lower === 'ඩිලිවරි') {
     orderType = 'delivery';
-  } else if (actionId === 'type_pickup' || lower === 'pickup' || lower === '2') {
+  } else if (actionId === 'type_pickup' || lower === 'pickup' || lower === '2' || lower === 'රැගෙන යාම' || lower === 'takeaway') {
     orderType = 'pickup';
-  } else if (actionId === 'type_dine_in' || lower === 'dine in' || lower === 'dine-in' || lower === 'dine_in' || lower === '3') {
+  } else if (actionId === 'type_dine_in' || lower === 'dine in' || lower === 'dine-in' || lower === 'dine_in' || lower === '3' || lower === 'ආපනශාලාවේදී') {
     orderType = 'dine_in';
   }
 
   if (!orderType) {
     return {
       replies: [
-        formatters.invalidInputMessage('Please choose how you would like to receive your order:'),
-        formatters.askOrderTypeMessage(),
+        formatters.invalidInputMessage(t('ask_order_type', lang), lang),
+        formatters.askOrderTypeMessage(lang),
       ],
       ownerNotification: null,
       session,
@@ -498,7 +546,7 @@ function handleOrderTypeState(restaurant, session, actionId, rawText, db) {
     session.state = 'DELIVERY_ADDRESS';
     session.context = context;
     return {
-      replies: [formatters.askDeliveryAddressMessage()],
+      replies: [formatters.askDeliveryAddressMessage(lang)],
       ownerNotification: null,
       session,
       order: null,
@@ -510,7 +558,7 @@ function handleOrderTypeState(restaurant, session, actionId, rawText, db) {
     session.state = 'TABLE_NUMBER';
     session.context = context;
     return {
-      replies: [formatters.askTableNumberMessage()],
+      replies: [formatters.askTableNumberMessage(lang)],
       ownerNotification: null,
       session,
       order: null,
@@ -522,7 +570,7 @@ function handleOrderTypeState(restaurant, session, actionId, rawText, db) {
   session.state = 'NOTES';
   session.context = context;
   return {
-    replies: [formatters.askNotesMessage()],
+    replies: [formatters.askNotesMessage(lang)],
     ownerNotification: null,
     session,
     order: null,
@@ -530,11 +578,12 @@ function handleOrderTypeState(restaurant, session, actionId, rawText, db) {
 }
 
 function handleDeliveryAddressState(restaurant, session, actionId, rawText, db) {
+  const lang = session.language || 'en';
   const address = rawText.trim();
   if (!address || address.length < 3) {
     return {
       replies: [
-        formatters.invalidInputMessage('Please enter your full delivery address:'),
+        formatters.invalidInputMessage(t('valid_address_error', lang), lang),
       ],
       ownerNotification: null,
       session,
@@ -548,7 +597,7 @@ function handleDeliveryAddressState(restaurant, session, actionId, rawText, db) 
   session.context = context;
 
   return {
-    replies: [formatters.askNotesMessage()],
+    replies: [formatters.askNotesMessage(lang)],
     ownerNotification: null,
     session,
     order: null,
@@ -556,11 +605,12 @@ function handleDeliveryAddressState(restaurant, session, actionId, rawText, db) 
 }
 
 function handleTableNumberState(restaurant, session, actionId, rawText, db) {
+  const lang = session.language || 'en';
   const table = rawText.trim();
   if (!table) {
     return {
       replies: [
-        formatters.invalidInputMessage('Please enter your table number:'),
+        formatters.invalidInputMessage(t('valid_table_error', lang), lang),
       ],
       ownerNotification: null,
       session,
@@ -574,7 +624,7 @@ function handleTableNumberState(restaurant, session, actionId, rawText, db) {
   session.context = context;
 
   return {
-    replies: [formatters.askNotesMessage()],
+    replies: [formatters.askNotesMessage(lang)],
     ownerNotification: null,
     session,
     order: null,
@@ -582,10 +632,11 @@ function handleTableNumberState(restaurant, session, actionId, rawText, db) {
 }
 
 function handleNotesState(restaurant, session, actionId, rawText, db) {
+  const lang = session.language || 'en';
   const lower = rawText.toLowerCase();
   let notes = '';
 
-  if (actionId === 'notes_skip' || lower === 'no' || lower === 'skip' || lower === 'none' || lower === 'no, thanks' || lower === 'no thanks') {
+  if (actionId === 'notes_skip' || lower === 'no' || lower === 'skip' || lower === 'none' || lower === 'no, thanks' || lower === 'no thanks' || lower === 'නැත' || lower === 'නැහැ') {
     notes = '';
   } else {
     notes = rawText.trim();
@@ -598,7 +649,7 @@ function handleNotesState(restaurant, session, actionId, rawText, db) {
   session.context = context;
 
   return {
-    replies: [formatters.askPaymentMethodMessage(Boolean(restaurant.lankaqr_enabled))],
+    replies: [formatters.askPaymentMethodMessage(Boolean(restaurant.lankaqr_enabled), lang)],
     ownerNotification: null,
     session,
     order: null,
@@ -606,12 +657,13 @@ function handleNotesState(restaurant, session, actionId, rawText, db) {
 }
 
 function handlePaymentMethodState(restaurant, session, actionId, rawText, db) {
+  const lang = session.language || 'en';
   const lower = rawText.toLowerCase();
 
   let paymentMethod = null;
-  if (actionId === 'pay_cod' || lower === 'cash' || lower === 'cod' || lower === '1') {
+  if (actionId === 'pay_cod' || lower === 'cash' || lower === 'cod' || lower === '1' || lower === 'මුදලින්') {
     paymentMethod = 'cod';
-  } else if (actionId === 'pay_lankaqr' || lower === 'lankaqr' || lower === 'qr' || lower === '2') {
+  } else if (actionId === 'pay_lankaqr' || lower === 'lankaqr' || lower === 'qr' || lower === '2' || lower === 'ලංකා qr' || lower === 'ලංකාqr') {
     if (restaurant.lankaqr_enabled) {
       paymentMethod = 'lankaqr';
     }
@@ -620,8 +672,8 @@ function handlePaymentMethodState(restaurant, session, actionId, rawText, db) {
   if (!paymentMethod) {
     return {
       replies: [
-        formatters.invalidInputMessage('Please choose a payment method:'),
-        formatters.askPaymentMethodMessage(Boolean(restaurant.lankaqr_enabled)),
+        formatters.invalidInputMessage(t('ask_payment', lang), lang),
+        formatters.askPaymentMethodMessage(Boolean(restaurant.lankaqr_enabled), lang),
       ],
       ownerNotification: null,
       session,
@@ -654,18 +706,18 @@ function handlePaymentMethodState(restaurant, session, actionId, rawText, db) {
   session.context = context;
 
   return {
-    replies: [formatters.orderConfirmationMessage(orderDetails)],
+    replies: [formatters.orderConfirmationMessage(orderDetails, lang)],
     ownerNotification: null,
     session,
     order: null,
   };
 }
 
-
 function handleOrderConfirmationState(restaurant, session, actionId, rawText, db) {
+  const lang = session.language || 'en';
   const lower = rawText.toLowerCase();
 
-  if (actionId === 'confirm_yes' || lower === 'yes' || lower === 'confirm' || lower === 'ok' || lower === '1') {
+  if (actionId === 'confirm_yes' || lower === 'yes' || lower === 'confirm' || lower === 'ok' || lower === '1' || lower === 'තහවුරු කරන්න' || lower === 'තහවුරු') {
     const { context } = session;
     const customer = findOrCreateCustomer(
       restaurant.id,
@@ -692,17 +744,18 @@ function handleOrderConfirmationState(restaurant, session, actionId, rawText, db
     // Reset session after successful order
     resetSession(session.id, db);
 
-    // Format customer completion message
+    // Format customer completion message in customer language
     const customerReply = formatters.orderCompletedMessage(
       orderResult.orderNumber,
       orderResult.total,
       restaurant.name,
-      paymentMethod
+      paymentMethod,
+      lang
     );
 
     const customerReplies = [customerReply];
 
-    // If customer selected LankaQR, generate instructions & QR code
+    // If customer selected LankaQR, generate instructions & QR code in customer language
     if (paymentMethod === 'lankaqr') {
       const qrPayload = generateLankaQrPayload({
         merchantName: restaurant.lankaqr_merchant_name || restaurant.name,
@@ -718,7 +771,7 @@ function handleOrderConfirmationState(restaurant, session, actionId, rawText, db
           total: orderResult.total,
           restaurant,
           qrPayload,
-        })
+        }, lang)
       );
     }
 
@@ -751,12 +804,12 @@ function handleOrderConfirmationState(restaurant, session, actionId, rawText, db
     };
   }
 
-  if (actionId === 'confirm_cancel' || lower === 'no' || lower === 'cancel' || lower === '2') {
+  if (actionId === 'confirm_cancel' || lower === 'no' || lower === 'cancel' || lower === '2' || lower === 'අවලංගු කරන්න' || lower === 'අවලංගු') {
     // Keep cart, set back to CART state
     updateSession(session.id, { state: 'CART' }, db);
     session.state = 'CART';
     return {
-      replies: [formatters.orderCancelledMessage()],
+      replies: [formatters.orderCancelledMessage(lang)],
       ownerNotification: null,
       session,
       order: null,
@@ -781,11 +834,10 @@ function handleOrderConfirmationState(restaurant, session, actionId, rawText, db
     total,
   };
 
-
   return {
     replies: [
-      formatters.invalidInputMessage('Please confirm or cancel using the buttons below:'),
-      formatters.orderConfirmationMessage(orderDetails),
+      formatters.invalidInputMessage(t('valid_confirm_error', lang), lang),
+      formatters.orderConfirmationMessage(orderDetails, lang),
     ],
     ownerNotification: null,
     session,

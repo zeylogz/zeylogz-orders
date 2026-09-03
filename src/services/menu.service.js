@@ -5,7 +5,7 @@ import { getDb } from '../database/db.js';
  */
 export function getCategories(restaurantId, db = getDb()) {
   return db.prepare(`
-    SELECT id, name, emoji, display_order
+    SELECT id, name, name_si, emoji, display_order
     FROM menu_categories
     WHERE restaurant_id = ? AND is_active = 1
     ORDER BY display_order ASC
@@ -17,7 +17,7 @@ export function getCategories(restaurantId, db = getDb()) {
  */
 export function getCategoryById(restaurantId, categoryId, db = getDb()) {
   return db.prepare(`
-    SELECT id, name, emoji, display_order
+    SELECT id, name, name_si, emoji, display_order
     FROM menu_categories
     WHERE id = ? AND restaurant_id = ? AND is_active = 1
   `).get(categoryId, restaurantId) || null;
@@ -28,7 +28,7 @@ export function getCategoryById(restaurantId, categoryId, db = getDb()) {
  */
 export function getItemsByCategory(restaurantId, categoryId, db = getDb()) {
   return db.prepare(`
-    SELECT id, name, description, price, image_url, display_order
+    SELECT id, name, name_si, description, description_si, price, image_url, display_order
     FROM menu_items
     WHERE restaurant_id = ? AND category_id = ? AND is_available = 1
     ORDER BY display_order ASC
@@ -41,9 +41,9 @@ export function getItemsByCategory(restaurantId, categoryId, db = getDb()) {
  */
 export function getItemById(restaurantId, itemId, db = getDb()) {
   return db.prepare(`
-    SELECT mi.id, mi.name, mi.description, mi.price, mi.image_url,
+    SELECT mi.id, mi.name, mi.name_si, mi.description, mi.description_si, mi.price, mi.image_url,
            mi.category_id, mi.is_available,
-           mc.name AS category_name
+           mc.name AS category_name, mc.name_si AS category_name_si
     FROM menu_items mi
     JOIN menu_categories mc ON mc.id = mi.category_id
     WHERE mi.id = ? AND mi.restaurant_id = ?
@@ -56,11 +56,12 @@ export function getItemById(restaurantId, itemId, db = getDb()) {
  */
 export function getAvailableItem(restaurantId, itemId, db = getDb()) {
   return db.prepare(`
-    SELECT id, name, description, price, category_id
+    SELECT id, name, name_si, description, description_si, price, category_id
     FROM menu_items
     WHERE id = ? AND restaurant_id = ? AND is_available = 1
   `).get(itemId, restaurantId) || null;
 }
+
 
 /**
  * Get the full menu for a restaurant: categories with nested items.

@@ -8,7 +8,9 @@ A lightweight, multi-tenant WhatsApp ordering SaaS application designed for inde
 
 The WhatsApp Ordering SaaS allows food businesses in Sri Lanka to receive direct customer orders via WhatsApp. 
 The system features:
+- **Bilingual (English & Sinhala / සිංහල)**: One-tap language toggle (`[🇱🇰 සිංහල]`), complete localized catalogs, prompts, and Sinhala rupee formatting (`රු.`).
 - **Zero App Download**: Customers order directly in WhatsApp using modern interactive buttons and list menus.
+- **LankaQR Payments**: Dynamic EMVCo QR code generation, instant CBSL-compliant transfer instructions, and owner payment verification.
 - **Multi-Tenant Ready**: Designed from day one to support multiple restaurants with database-level isolation (`restaurant_id` on all tables).
 - **Automated Operations**: Automatic cart calculation in LKR, delivery fee handling, order numbering, and instant notification sent to the restaurant owner's WhatsApp.
 - **Idempotent & Resilient**: Handles retried webhooks safely and prevents duplicate orders.
@@ -17,13 +19,14 @@ The system features:
 
 ## 2. Example WhatsApp Conversation
 
-### Customer Ordering Experience
+### Customer Ordering Experience (English / Default)
 
 ```
 Customer: Hi
 Bot:       👋 Welcome to Urban Bites!
            How can we help you today?
-           [🍔 View Menu]  [🛒 View Cart]
+           [🍔 View Menu]  [🛒 View Cart]  [🇱🇰 සිංහල]
+
 
 Customer: [🍔 View Menu]
 Bot:       📋 Our Menu
@@ -109,10 +112,93 @@ Bot:       ✅ Order received!
            📲 LankaQR Raw Code:
            00020101021226420022LK.LANKACLEAR.LANKAQR0107UB9400152045812530314454072000.005802LK5911Urban Bites6007Colombo62110107UB-10016304...
 
-           📷 Please reply with a screenshot or photo of your payment slip once transferred!
+### Sinhala Ordering Experience (සිංහල)
+
+```
+Customer: [🇱🇰 සිංහල]
+Bot:       👋 Urban Bites වෙත සාදරයෙන් පිළිගනිමු!
+           අද ඔබ කැමති කුමක් කිරීමටද?
+           [🍔 මෙනුව බලන්න]   [🛒 මගේ බෑගය]   [🇬🇧 English]
+
+Customer: [🍔 මෙනුව බලන්න]
+Bot:       📋 අපගේ මෙනුව
+           කරුණාකර වර්ගයක් තෝරන්න:
+           - 🍔 බර්ගර්
+           - 🍟 අතුරු කෑම
+           - 🥤 බීම වර්ග
+
+Customer: [🍔 බර්ගර්]
+Bot:       🍔 බර්ගර්
+           බෑගයට එක් කිරීමට අයිතමයක් තෝරන්න:
+           - ක්ලැසික් බීෆ් බර්ගර් (රු. 850)
+           - ක්‍රිස්පි චිකන් බර්ගර් (රු. 900)
+           - චීස් බර්ගර් (රු. 950)
+
+Customer: [චීස් බර්ගර්]
+Bot:       🛒 චීස් බර්ගර්
+           💰 රු. 950
+           ඔබට කීයක් අවශ්‍යද?
+           [1]   [2]   [3] (හෝ අංකයක් ටයිප් කරන්න 1-99)
+
+Customer: [2]
+Bot:       ✅ චීස් බර්ගර් 2ක් බෑගයට එකතු කළා!
+           🛒 ඔබගේ බෑගය:
+           2 × චීස් බර්ගර් — රු. 1,900
+           එකතුව: රු. 1,900
+           [➕ තව එක් කරන්න]   [🗑 ඉවත් කරන්න]   [✅ ඇණවුම් කරන්න]
+
+Customer: [✅ ඇණවුම් කරන්න]
+Bot:       📝 ඇණවුම් කිරීම
+           කරුණාකර ඔබගේ නම ටයිප් කරන්න:
+
+Customer: කමල් පෙරේරා
+Bot:       🚗 ඔබ ඇණවුම ලබාගන්නේ කෙසේද?
+           [🚚 ඩිලිවරි]   [🏪 රැගෙන යාම]   [🍽 ආපනශාලාවේදී]
+
+Customer: [🚚 ඩිලිවරි]
+Bot:       📍 කරුණාකර ඔබගේ ඩිලිවරි ලිපිනය ටයිප් කරන්න:
+
+Customer: 42 ගාලු පාර, කොළඹ 03
+Bot:       💳 ගෙවීම් ක්‍රමය
+           ඔබ මුදල් ගෙවීමට කැමති කෙසේද?
+           [💵 මුදලින්]   [📱 ලංකා QR]
+
+Customer: [📱 ලංකා QR]
+Bot:       🧾 ඇණවුම් සාරාංශය
+           2 × චීස් බර්ගර්
+           අයිතම එකතුව: රු. 1,900
+           ඩිලිවරි ගාස්තු: රු. 300
+           මුළු එකතුව: රු. 2,200
+
+           👤 කමල් පෙරේරා
+           📦 ඩිලිවරි
+           💳 📱 ලංකා QR
+           📍 42 ගාලු පාර, කොළඹ 03
+
+           මෙම ඇණවුම තහවුරු කරනවාද?
+           [✅ තහවුරු කරන්න]   [❌ අවලංගු කරන්න]
+
+Customer: [✅ තහවුරු කරන්න]
+Bot:       ✅ ඔබගේ ඇණවුම සාර්ථකව ලැබුණා!
+           ඇණවුම් අංකය: UB-1002
+           මුළු මුදල: රු. 2,200
+           කිසියම් පැහැදිලි කිරීමක් අවශ්‍ය නම් Urban Bites ඔබව සම්බන්ධ කර ගනු ඇත.
+           ස්තූතියි! 🙏
+
+           📱 ලංකා QR ගෙවීම
+           කරුණාකර ඔබගේ රු. 2,200 මුදල ඕනෑම ලංකා QR සහය දක්වන බැංකු හෝ ඩිජිටල් ඇප් එකකින් ගෙවන්න:
+           (Genie, FriMi, Flash, ComBank Q+, HNB SOLO, BOC SmartPay, WePay, ආදිය)
+
+           🏦 බැංකු තොරතුරු:
+           • බැංකුව: Commercial Bank of Ceylon
+           • ගිණුමේ නම: Urban Bites
+           • ගිණුම් අංකය: 1000456789
+           • මුදල: රු. 2,200
+           • යොමු අංකය (Ref): UB-1002
 ```
 
 ### Restaurant Owner WhatsApp Notification
+
 
 ```
 🔔 NEW ORDER

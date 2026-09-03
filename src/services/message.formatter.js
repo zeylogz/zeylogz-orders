@@ -1,4 +1,5 @@
 import { formatPrice } from '../utils/formatting.js';
+import { t, formatPriceLocalized } from '../utils/i18n.js';
 
 /**
  * Message types that the conversation engine produces.
@@ -13,13 +14,18 @@ import { formatPrice } from '../utils/formatting.js';
 // ---------------------------------------------------------------------------
 // Welcome
 // ---------------------------------------------------------------------------
-export function welcomeMessage(restaurantName) {
+export function welcomeMessage(restaurantName, lang = 'en') {
+  const switchBtn = lang === 'si'
+    ? { id: 'action_lang_en', title: '🇬🇧 English' }
+    : { id: 'action_lang_si', title: '🇱🇰 සිංහල' };
+
   return {
     type: 'buttons',
-    body: `👋 Welcome to *${restaurantName}*!\n\nHow can we help you today?`,
+    body: t('welcome_title', lang, { restaurantName }),
     buttons: [
-      { id: 'action_menu', title: '🍔 View Menu' },
-      { id: 'action_cart', title: '🛒 View Cart' },
+      { id: 'action_menu', title: t('btn_menu', lang) },
+      { id: 'action_cart', title: t('btn_cart', lang) },
+      switchBtn,
     ],
   };
 }
@@ -27,18 +33,21 @@ export function welcomeMessage(restaurantName) {
 // ---------------------------------------------------------------------------
 // Menu — category list
 // ---------------------------------------------------------------------------
-export function categoryListMessage(categories) {
+export function categoryListMessage(categories, lang = 'en') {
   return {
     type: 'list',
-    body: '📋 *Our Menu*\n\nSelect a category to browse:',
-    buttonText: 'View Categories',
+    body: t('menu_title', lang),
+    buttonText: t('btn_view_categories', lang),
     sections: [
       {
-        title: 'Menu Categories',
-        rows: categories.map((cat) => ({
-          id: `category_${cat.id}`,
-          title: `${cat.emoji} ${cat.name}`,
-        })),
+        title: lang === 'si' ? 'වර්ග' : 'Menu Categories',
+        rows: categories.map((cat) => {
+          const catName = (lang === 'si' && cat.name_si) ? cat.name_si : cat.name;
+          return {
+            id: `category_${cat.id}`,
+            title: `${cat.emoji} ${catName}`.slice(0, 24),
+          };
+        }),
       },
     ],
   };
@@ -47,19 +56,24 @@ export function categoryListMessage(categories) {
 // ---------------------------------------------------------------------------
 // Items in a category
 // ---------------------------------------------------------------------------
-export function itemListMessage(categoryName, categoryEmoji, items) {
+export function itemListMessage(categoryName, categoryEmoji, items, lang = 'en') {
   return {
     type: 'list',
-    body: `${categoryEmoji} *${categoryName}*\n\nSelect an item to add to your cart:`,
-    buttonText: 'View Items',
+    body: t('category_header', lang, { emoji: categoryEmoji, categoryName }),
+    buttonText: t('btn_view_items', lang),
     sections: [
       {
-        title: categoryName,
-        rows: items.map((item) => ({
-          id: `item_${item.id}`,
-          title: item.name,
-          description: `${formatPrice(item.price)}${item.description ? ' — ' + item.description : ''}`,
-        })),
+        title: categoryName.slice(0, 24),
+        rows: items.map((item) => {
+          const itemName = (lang === 'si' && item.name_si) ? item.name_si : item.name;
+          const itemDesc = (lang === 'si' && item.description_si) ? item.description_si : item.description;
+          const priceStr = formatPriceLocalized(item.price, lang);
+          return {
+            id: `item_${item.id}`,
+            title: itemName.slice(0, 24),
+            description: `${priceStr}${itemDesc ? ' — ' + itemDesc : ''}`.slice(0, 72),
+          };
+        }),
       },
     ],
   };
@@ -68,46 +82,50 @@ export function itemListMessage(categoryName, categoryEmoji, items) {
 // ---------------------------------------------------------------------------
 // Quantity prompt
 // ---------------------------------------------------------------------------
-export function quantityMessage(itemName, price) {
+export function quantityMessage(itemName, price, lang = 'en') {
+  const priceStr = formatPriceLocalized(price, lang);
   return {
     type: 'buttons',
-    body: `🛒 *${itemName}*\n💰 ${formatPrice(price)}\n\nHow many would you like?`,
+    body: t('qty_prompt', lang, { itemName, price: priceStr }),
     buttons: [
       { id: 'qty_1', title: '1' },
       { id: 'qty_2', title: '2' },
       { id: 'qty_3', title: '3' },
     ],
-    footer: 'Or type a number (1-99)',
+    footer: t('qty_footer', lang),
   };
 }
 
 // ---------------------------------------------------------------------------
 // Cart
 // ---------------------------------------------------------------------------
-export function cartMessage(cart, subtotal) {
+export function cartMessage(cart, subtotal, lang = 'en') {
   if (cart.length === 0) {
     return {
       type: 'buttons',
-      body: '🛒 Your cart is empty.\n\nWould you like to browse our menu?',
+      body: t('cart_empty', lang),
       buttons: [
-        { id: 'action_menu', title: '🍔 View Menu' },
+        { id: 'action_menu', title: t('btn_menu', lang) },
       ],
     };
   }
 
   const lines = cart.map(
-    (item) => `${item.quantity} × ${item.name} — ${formatPrice(item.price * item.quantity)}`
+    (item) => `${item.quantity} × ${item.name} — ${formatPriceLocalized(item.price * item.quantity, lang)}`
   );
 
-  const body = `🛒 *Your Cart*\n\n${lines.join('\n')}\n\n*Subtotal: ${formatPrice(subtotal)}*`;
+  const body = t('cart_title', lang, {
+    items: lines.join('\n'),
+    subtotal: formatPriceLocalized(subtotal, lang),
+  });
 
   return {
     type: 'buttons',
     body,
     buttons: [
-      { id: 'action_add_more', title: '➕ Add More' },
-      { id: 'action_clear_cart', title: '🗑 Clear Cart' },
-      { id: 'action_checkout', title: '✅ Checkout' },
+      { id: 'action_add_more', title: t('btn_add_more', lang) },
+      { id: 'action_clear_cart', title: t('btn_clear_cart', lang) },
+      { id: 'action_checkout', title: t('btn_checkout', lang) },
     ],
   };
 }
@@ -115,20 +133,25 @@ export function cartMessage(cart, subtotal) {
 // ---------------------------------------------------------------------------
 // Item added confirmation
 // ---------------------------------------------------------------------------
-export function itemAddedMessage(itemName, quantity, cart, subtotal) {
+export function itemAddedMessage(itemName, quantity, cart, subtotal, lang = 'en') {
   const lines = cart.map(
-    (item) => `${item.quantity} × ${item.name} — ${formatPrice(item.price * item.quantity)}`
+    (item) => `${item.quantity} × ${item.name} — ${formatPriceLocalized(item.price * item.quantity, lang)}`
   );
 
-  const body = `✅ Added ${quantity} × *${itemName}* to your cart!\n\n🛒 *Your Cart*\n${lines.join('\n')}\n\n*Subtotal: ${formatPrice(subtotal)}*`;
+  const body = t('cart_added', lang, {
+    quantity,
+    itemName,
+    items: lines.join('\n'),
+    subtotal: formatPriceLocalized(subtotal, lang),
+  });
 
   return {
     type: 'buttons',
     body,
     buttons: [
-      { id: 'action_add_more', title: '➕ Add More' },
-      { id: 'action_clear_cart', title: '🗑 Clear Cart' },
-      { id: 'action_checkout', title: '✅ Checkout' },
+      { id: 'action_add_more', title: t('btn_add_more', lang) },
+      { id: 'action_clear_cart', title: t('btn_clear_cart', lang) },
+      { id: 'action_checkout', title: t('btn_checkout', lang) },
     ],
   };
 }
@@ -136,65 +159,65 @@ export function itemAddedMessage(itemName, quantity, cart, subtotal) {
 // ---------------------------------------------------------------------------
 // Checkout prompts
 // ---------------------------------------------------------------------------
-export function askCustomerNameMessage() {
+export function askCustomerNameMessage(lang = 'en') {
   return {
     type: 'text',
-    body: '📝 *Checkout*\n\nPlease type your name:',
+    body: t('ask_name', lang),
   };
 }
 
-export function askOrderTypeMessage() {
+export function askOrderTypeMessage(lang = 'en') {
   return {
     type: 'buttons',
-    body: '🚗 How would you like to receive your order?',
+    body: t('ask_order_type', lang),
     buttons: [
-      { id: 'type_delivery', title: '🚚 Delivery' },
-      { id: 'type_pickup', title: '🏪 Pickup' },
-      { id: 'type_dine_in', title: '🍽 Dine-in' },
+      { id: 'type_delivery', title: t('btn_delivery', lang) },
+      { id: 'type_pickup', title: t('btn_pickup', lang) },
+      { id: 'type_dine_in', title: t('btn_dine_in', lang) },
     ],
   };
 }
 
-export function askDeliveryAddressMessage() {
+export function askDeliveryAddressMessage(lang = 'en') {
   return {
     type: 'text',
-    body: '📍 Please type your delivery address:',
+    body: t('ask_delivery_address', lang),
   };
 }
 
-export function askTableNumberMessage() {
+export function askTableNumberMessage(lang = 'en') {
   return {
     type: 'text',
-    body: '🍽 Please type your table number:',
+    body: t('ask_table_number', lang),
   };
 }
 
-export function askNotesMessage() {
+export function askNotesMessage(lang = 'en') {
   return {
     type: 'buttons',
-    body: '📝 Any special instructions or notes?\n\n(e.g., "No onions", "Extra spicy")',
+    body: t('ask_notes', lang),
     buttons: [
-      { id: 'notes_skip', title: 'No, thanks' },
+      { id: 'notes_skip', title: t('btn_skip_notes', lang) },
     ],
-    footer: 'Or type your notes',
+    footer: t('notes_footer', lang),
   };
 }
 
 // ---------------------------------------------------------------------------
 // Payment Method Selection
 // ---------------------------------------------------------------------------
-export function askPaymentMethodMessage(lankaqrEnabled = true) {
+export function askPaymentMethodMessage(lankaqrEnabled = true, lang = 'en') {
   const buttons = [
-    { id: 'pay_cod', title: '💵 Cash' },
+    { id: 'pay_cod', title: t('btn_cod', lang) },
   ];
 
   if (lankaqrEnabled) {
-    buttons.push({ id: 'pay_lankaqr', title: '📱 LankaQR' });
+    buttons.push({ id: 'pay_lankaqr', title: t('btn_lankaqr', lang) });
   }
 
   return {
     type: 'buttons',
-    body: '💳 *Payment Method*\n\nHow would you like to pay for your order?',
+    body: t('ask_payment', lang),
     buttons,
   };
 }
@@ -202,7 +225,7 @@ export function askPaymentMethodMessage(lankaqrEnabled = true) {
 // ---------------------------------------------------------------------------
 // Order confirmation
 // ---------------------------------------------------------------------------
-export function orderConfirmationMessage(orderDetails) {
+export function orderConfirmationMessage(orderDetails, lang = 'en') {
   const {
     items,
     customerName,
@@ -220,20 +243,25 @@ export function orderConfirmationMessage(orderDetails) {
     (item) => `${item.quantity} × ${item.name}`
   );
 
-  const typeLabels = { delivery: 'Delivery', pickup: 'Pickup', dine_in: 'Dine-in' };
-  const paymentLabels = {
-    cod: orderType === 'delivery' ? 'Cash on Delivery' : 'Pay at Counter',
-    lankaqr: '📱 LankaQR',
+  const typeLabels = {
+    delivery: t('btn_delivery', lang),
+    pickup: t('btn_pickup', lang),
+    dine_in: t('btn_dine_in', lang),
   };
 
-  let body = `🧾 *Order Summary*\n\n${itemLines.join('\n')}\n`;
-  body += `\nSubtotal: ${formatPrice(subtotal)}`;
+  const paymentLabels = {
+    cod: orderType === 'delivery' ? t('pay_cod_label', lang) : t('pay_counter_label', lang),
+    lankaqr: t('pay_lankaqr_label', lang),
+  };
+
+  let body = `${t('order_summary_title', lang, { items: itemLines.join('\n') })}`;
+  body += `\n${t('summary_subtotal', lang, { subtotal: formatPriceLocalized(subtotal, lang) })}`;
 
   if (deliveryFee > 0) {
-    body += `\nDelivery: ${formatPrice(deliveryFee)}`;
+    body += `\n${t('summary_delivery', lang, { deliveryFee: formatPriceLocalized(deliveryFee, lang) })}`;
   }
 
-  body += `\n*Total: ${formatPrice(total)}*`;
+  body += `\n${t('summary_total', lang, { total: formatPriceLocalized(total, lang) })}`;
   body += `\n\n👤 ${customerName}`;
   body += `\n📦 ${typeLabels[orderType] || orderType}`;
   body += `\n💳 ${paymentLabels[paymentMethod] || paymentMethod}`;
@@ -242,14 +270,14 @@ export function orderConfirmationMessage(orderDetails) {
   if (tableNumber) body += `\n🍽 Table ${tableNumber}`;
   if (notes) body += `\n📝 ${notes}`;
 
-  body += '\n\nConfirm this order?';
+  body += `\n\n${t('confirm_question', lang)}`;
 
   return {
     type: 'buttons',
     body,
     buttons: [
-      { id: 'confirm_yes', title: '✅ Confirm' },
-      { id: 'confirm_cancel', title: '❌ Cancel' },
+      { id: 'confirm_yes', title: t('btn_confirm', lang) },
+      { id: 'confirm_cancel', title: t('btn_cancel', lang) },
     ],
   };
 }
@@ -257,22 +285,27 @@ export function orderConfirmationMessage(orderDetails) {
 // ---------------------------------------------------------------------------
 // Order completed
 // ---------------------------------------------------------------------------
-export function orderCompletedMessage(orderNumber, total, restaurantName, paymentMethod = 'cod') {
+export function orderCompletedMessage(orderNumber, total, restaurantName, paymentMethod = 'cod', lang = 'en') {
   let payNote = '';
   if (paymentMethod === 'cod') {
-    payNote = `\n💵 Please have *${formatPrice(total)}* ready to pay upon handover.`;
+    payNote = t('cod_pay_note', lang, { total: formatPriceLocalized(total, lang) });
   }
 
   return {
     type: 'text',
-    body: `✅ *Order received!*\n\nYour order number is *${orderNumber}*\nTotal: *${formatPrice(total)}*${payNote}\n\n${restaurantName} will contact you if anything needs clarification.\n\nThank you! 🙏`,
+    body: t('order_completed', lang, {
+      orderNumber,
+      total: formatPriceLocalized(total, lang),
+      payNote,
+      restaurantName,
+    }),
   };
 }
 
 // ---------------------------------------------------------------------------
 // LankaQR Payment Instructions
 // ---------------------------------------------------------------------------
-export function lankaqrPaymentInstructionsMessage(params) {
+export function lankaqrPaymentInstructionsMessage(params, lang = 'en') {
   const {
     orderNumber,
     total,
@@ -280,19 +313,26 @@ export function lankaqrPaymentInstructionsMessage(params) {
     qrPayload,
   } = params;
 
-  let body = `📱 *LANKAQR PAYMENT*\n\n`;
-  body += `Please complete your payment of *${formatPrice(total)}* using any LankaQR-supported banking or digital wallet app:\n`;
-  body += `(Genie, FriMi, Flash, ComBank Q+, HNB SOLO, BOC SmartPay, WePay, etc.)\n\n`;
+  const totalStr = formatPriceLocalized(total, lang);
 
-  body += `🏦 *Bank Transfer Details:*\n`;
-  if (restaurant.lankaqr_bank_name) body += `• Bank: ${restaurant.lankaqr_bank_name}\n`;
-  if (restaurant.lankaqr_merchant_name) body += `• Account Name: ${restaurant.lankaqr_merchant_name}\n`;
-  if (restaurant.lankaqr_account_number) body += `• Account Number: ${restaurant.lankaqr_account_number}\n`;
-  body += `• Amount: *${formatPrice(total)}*\n`;
-  body += `• Reference: *${orderNumber}*\n\n`;
+  let body = t('lankaqr_title', lang);
+  body += t('lankaqr_prompt', lang, { total: totalStr });
+  body += t('lankaqr_bank_details', lang);
 
-  body += `📲 *LankaQR Raw Code:*\n\`\`\`${qrPayload}\`\`\`\n\n`;
-  body += `📷 Please reply with a screenshot or photo of your payment slip once transferred!`;
+  if (restaurant.lankaqr_bank_name) {
+    body += t('lankaqr_bank', lang, { bankName: restaurant.lankaqr_bank_name });
+  }
+  if (restaurant.lankaqr_merchant_name) {
+    body += t('lankaqr_account_name', lang, { accountName: restaurant.lankaqr_merchant_name });
+  }
+  if (restaurant.lankaqr_account_number) {
+    body += t('lankaqr_account_number', lang, { accountNumber: restaurant.lankaqr_account_number });
+  }
+
+  body += t('lankaqr_amount', lang, { total: totalStr });
+  body += t('lankaqr_reference', lang, { orderNumber });
+  body += t('lankaqr_raw_code', lang, { qrPayload });
+  body += t('lankaqr_slip_note', lang);
 
   return {
     type: 'text',
@@ -301,7 +341,7 @@ export function lankaqrPaymentInstructionsMessage(params) {
 }
 
 // ---------------------------------------------------------------------------
-// Owner notification
+// Owner notification (always standard formatted with clear details)
 // ---------------------------------------------------------------------------
 export function ownerNotificationMessage(orderDetails) {
   const {
@@ -363,46 +403,44 @@ export function ownerNotificationMessage(orderDetails) {
   };
 }
 
-
-
 // ---------------------------------------------------------------------------
 // Error / fallback messages
 // ---------------------------------------------------------------------------
-export function invalidInputMessage(hint) {
+export function invalidInputMessage(hint, lang = 'en') {
   return {
     type: 'text',
-    body: `❌ Sorry, I didn't understand that.\n\n${hint || 'Please try again or type "menu" to start over.'}`,
+    body: t('invalid_input', lang, { hint: hint || t('choose_item', lang) }),
   };
 }
 
-export function cartClearedMessage() {
+export function cartClearedMessage(lang = 'en') {
   return {
     type: 'buttons',
-    body: '🗑 Your cart has been cleared.',
+    body: t('cart_cleared', lang),
     buttons: [
-      { id: 'action_menu', title: '🍔 View Menu' },
+      { id: 'action_menu', title: t('btn_menu', lang) },
     ],
   };
 }
 
-export function orderCancelledMessage() {
+export function orderCancelledMessage(lang = 'en') {
   return {
     type: 'buttons',
-    body: '❌ Your order has been cancelled.\n\nYour cart has been preserved. You can continue shopping or start fresh.',
+    body: t('order_cancelled', lang),
     buttons: [
-      { id: 'action_menu', title: '🍔 View Menu' },
-      { id: 'action_cart', title: '🛒 View Cart' },
+      { id: 'action_menu', title: t('btn_menu', lang) },
+      { id: 'action_cart', title: t('btn_cart', lang) },
     ],
   };
 }
 
-export function itemUnavailableMessage() {
+export function itemUnavailableMessage(lang = 'en') {
   return {
     type: 'buttons',
-    body: '😔 Sorry, that item is currently unavailable.',
+    body: t('item_unavailable', lang),
     buttons: [
-      { id: 'action_menu', title: '🍔 View Menu' },
-      { id: 'action_cart', title: '🛒 View Cart' },
+      { id: 'action_menu', title: t('btn_menu', lang) },
+      { id: 'action_cart', title: t('btn_cart', lang) },
     ],
   };
 }

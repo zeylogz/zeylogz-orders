@@ -45,15 +45,15 @@ export function seedDatabase(db) {
   // -------------------------------------------------------------------------
   const insertCategory = db.prepare(`
     INSERT OR IGNORE INTO menu_categories
-      (id, restaurant_id, name, emoji, display_order, is_active)
+      (id, restaurant_id, name, name_si, emoji, display_order, is_active)
     VALUES
-      (?, ?, ?, ?, ?, ?)
+      (?, ?, ?, ?, ?, ?, ?)
   `);
 
   const categories = [
-    [1, 1, 'Burgers',  '🍔', 1, 1],
-    [2, 1, 'Sides',    '🍟', 2, 1],
-    [3, 1, 'Drinks',   '🥤', 3, 1],
+    [1, 1, 'Burgers', 'බර්ගර්',    '🍔', 1, 1],
+    [2, 1, 'Sides',   'අතුරු කෑම', '🍟', 2, 1],
+    [3, 1, 'Drinks',  'බීම වර්ග',  '🥤', 3, 1],
   ];
 
   const insertCategories = db.transaction(() => {
@@ -70,26 +70,26 @@ export function seedDatabase(db) {
   // -------------------------------------------------------------------------
   const insertItem = db.prepare(`
     INSERT OR IGNORE INTO menu_items
-      (id, restaurant_id, category_id, name, description, price,
+      (id, restaurant_id, category_id, name, name_si, description, description_si, price,
        is_available, display_order)
     VALUES
-      (?, ?, ?, ?, ?, ?, ?, ?)
+      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const items = [
     // Burgers
-    [1, 1, 1, 'Classic Beef Burger',    'Juicy beef patty with fresh lettuce, tomato & our signature sauce',  850, 1, 1],
-    [2, 1, 1, 'Crispy Chicken Burger',  'Crispy fried chicken fillet with coleslaw & mayo',                  900, 1, 2],
-    [3, 1, 1, 'Cheese Burger',          'Double cheese with caramelized onions & pickles',                   950, 1, 3],
+    [1, 1, 1, 'Classic Beef Burger',   'ක්ලැසික් බීෆ් බර්ගර්',   'Juicy beef patty with fresh lettuce, tomato & our signature sauce', 'නැවුම් එළවළු සහ රසවත් බීෆ් පැටියක් සහිතයි', 850, 1, 1],
+    [2, 1, 1, 'Crispy Chicken Burger', 'ක්‍රිස්පි චිකන් බර්ගර්', 'Crispy fried chicken fillet with coleslaw & mayo',                 'කරස් ගා හැපෙන රසවත් චිකන් බර්ගර්',          900, 1, 2],
+    [3, 1, 1, 'Cheese Burger',         'චීස් බර්ගර්',           'Double cheese with caramelized onions & pickles',                  'දියවූ චීස් සමග ජූසි බීෆ් පැටියක්',           950, 1, 3],
 
     // Sides
-    [4, 1, 2, 'French Fries',           'Crispy golden fries with ketchup',                                  450, 1, 1],
-    [5, 1, 2, 'Chicken Wings',          '6 pcs buffalo wings with blue cheese dip',                          800, 1, 2],
+    [4, 1, 2, 'French Fries',          'ෆ්‍රෙන්ච් ෆ්‍රයිස්',     'Crispy golden fries with ketchup',                                 'රන්වන් පැහැති අල තීරු',                     450, 1, 1],
+    [5, 1, 2, 'Chicken Wings',         'චිකන් වින්ග්ස්',        '6 pcs buffalo wings with blue cheese dip',                         'රසවත් චිකන් වින්ග්ස් කෑලි 6ක්',              800, 1, 2],
 
     // Drinks
-    [6, 1, 3, 'Coca-Cola',              'Chilled 330ml can',                                                 250, 1, 1],
-    [7, 1, 3, 'Sprite',                 'Chilled 330ml can',                                                 250, 1, 2],
-    [8, 1, 3, 'Chocolate Milkshake',    'Rich & creamy chocolate milkshake',                                 550, 1, 3],
+    [6, 1, 3, 'Coca-Cola',             'කොකා-කෝලා',             'Chilled 330ml can',                                                'සිසිල් කළ බීම කෑනයක් (330ml)',              250, 1, 1],
+    [7, 1, 3, 'Sprite',                'ස්ප්‍රයිට්',             'Chilled 330ml can',                                                'සිසිල් කළ බීම කෑනයක් (330ml)',              250, 1, 2],
+    [8, 1, 3, 'Chocolate Milkshake',   'චොකලට් මිල්ක්ෂේක්',     'Rich & creamy chocolate milkshake',                                'ක්‍රීමි චොකලට් මිල්ක්ෂේක්',                  550, 1, 3],
   ];
 
   const insertItems = db.transaction(() => {
@@ -100,6 +100,7 @@ export function seedDatabase(db) {
   insertItems();
 
   logger.info(`Seeded ${items.length} menu items`);
+
 
   return {
     restaurant: { id: 1, name: 'Urban Bites' },
