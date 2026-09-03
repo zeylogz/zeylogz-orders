@@ -8,8 +8,10 @@ node_modules/
 
 # Database
 data/*.db
+data/*.db-*
 data/*.sqlite
 data/*.sqlite3
+
 
 # Logs
 logs/
