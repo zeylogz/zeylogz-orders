@@ -1,6 +1,12 @@
 import app from './app.js';
 import { env } from './config/env.js';
 import { logger } from './utils/logger.js';
+import { initializeDatabase, closeDatabase } from './database/db.js';
+
+// ---------------------------------------------------------------------------
+// Initialize database
+// ---------------------------------------------------------------------------
+initializeDatabase();
 
 const PORT = env.PORT;
 
@@ -16,6 +22,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 function shutdown(signal) {
   logger.info(`${signal} received — shutting down gracefully`);
   server.close(() => {
+    closeDatabase();
     logger.info('HTTP server closed');
     process.exit(0);
   });
@@ -29,3 +36,4 @@ function shutdown(signal) {
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
+
