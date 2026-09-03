@@ -68,6 +68,11 @@ Bot:       📝 Any special instructions or notes?
            [No, thanks] (or type your notes)
 
 Customer: Extra napkins please
+Bot:       💳 *Payment Method*
+           How would you like to pay for your order?
+           [💵 Cash]  [📱 LankaQR]
+
+Customer: [📱 LankaQR]
 Bot:       🧾 Order Summary
            2 × Classic Beef Burger
            Subtotal: Rs. 1,700
@@ -76,6 +81,7 @@ Bot:       🧾 Order Summary
 
            👤 Kamal Perera
            📦 Delivery
+           💳 📱 LankaQR
            📍 42 Galle Road, Colombo 03
            📝 Extra napkins please
 
@@ -88,6 +94,22 @@ Bot:       ✅ Order received!
            Total: Rs. 2,000
            Urban Bites will contact you if anything needs clarification.
            Thank you! 🙏
+
+           📱 *LANKAQR PAYMENT*
+           Please complete your payment of Rs. 2,000 using any LankaQR-supported banking or digital wallet app:
+           (Genie, FriMi, Flash, ComBank Q+, HNB SOLO, BOC SmartPay, WePay, etc.)
+
+           🏦 *Bank Transfer Details:*
+           • Bank: Commercial Bank of Ceylon
+           • Account Name: Urban Bites
+           • Account Number: 1000456789
+           • Amount: Rs. 2,000
+           • Reference: UB-1001
+
+           📲 LankaQR Raw Code:
+           00020101021226420022LK.LANKACLEAR.LANKAQR0107UB9400152045812530314454072000.005802LK5911Urban Bites6007Colombo62110107UB-10016304...
+
+           📷 Please reply with a screenshot or photo of your payment slip once transferred!
 ```
 
 ### Restaurant Owner WhatsApp Notification
@@ -99,6 +121,7 @@ Order: UB-1001
 👤 Kamal Perera
 📱 94771234567
 📦 Delivery
+💳 📱 LankaQR (Transfer) (⏳ Pending Verification)
 
 Items:
 2 × Classic Beef Burger — Rs. 1,700
@@ -111,6 +134,7 @@ TOTAL: Rs. 2,000
 📝 Extra napkins please
 🕐 07:45 PM
 ```
+
 
 ---
 
