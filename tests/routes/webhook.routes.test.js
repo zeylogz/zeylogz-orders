@@ -58,6 +58,8 @@ describe('Meta Webhook Integration (/webhook)', () => {
   });
 
   describe('POST /webhook (Incoming Events & Idempotency)', () => {
+    const testMessageId = `wamid.msg_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+
     it('processes incoming WhatsApp text message and sends reply', async () => {
       const payload = {
         object: 'whatsapp_business_account',
@@ -71,7 +73,7 @@ describe('Meta Webhook Integration (/webhook)', () => {
                   messages: [
                     {
                       from: '94770005555',
-                      id: 'wamid.msg_test_001',
+                      id: testMessageId,
                       timestamp: '1725370000',
                       type: 'text',
                       text: { body: 'Hi' },
@@ -93,10 +95,14 @@ describe('Meta Webhook Integration (/webhook)', () => {
 
       expect(res.status).toBe(200);
 
-      // Wait briefly for async execution in webhook handler
-      await new Promise((r) => setTimeout(r, 50));
+      // Poll briefly for async webhook processing to complete
+      let sent = [];
+      for (let i = 0; i < 20; i++) {
+        sent = getMockSentMessages();
+        if (sent.length > 0) break;
+        await new Promise((r) => setTimeout(r, 25));
+      }
 
-      const sent = getMockSentMessages();
       expect(sent.length).toBeGreaterThanOrEqual(1);
       expect(sent[0].to).toBe('94770005555');
       expect(sent[0].type).toBe('interactive');
@@ -116,7 +122,7 @@ describe('Meta Webhook Integration (/webhook)', () => {
                   messages: [
                     {
                       from: '94770005555',
-                      id: 'wamid.msg_test_001', // Same ID as previous test
+                      id: testMessageId, // Same ID as previous test
                       timestamp: '1725370000',
                       type: 'text',
                       text: { body: 'Hi' },
@@ -129,6 +135,7 @@ describe('Meta Webhook Integration (/webhook)', () => {
           },
         ],
       };
+
 
       clearMockSentMessages();
 
