@@ -11,7 +11,9 @@ import {
 import { findOrCreateCustomer, createOrder } from './order.service.js';
 import { getOrCreateSession, updateSession, resetSession } from './session.service.js';
 import * as formatters from './message.formatter.js';
+import { generateLankaQrPayload } from './lankaqr.service.js';
 import { logger } from '../utils/logger.js';
+
 
 /**
  * Handle an incoming message from a customer.
@@ -124,8 +126,12 @@ export function handleIncomingMessage(params, db = getDb()) {
     case 'NOTES':
       return handleNotesState(restaurant, session, actionId, rawText, db);
 
+    case 'PAYMENT_METHOD':
+      return handlePaymentMethodState(restaurant, session, actionId, rawText, db);
+
     case 'ORDER_CONFIRMATION':
       return handleOrderConfirmationState(restaurant, session, actionId, rawText, db);
+
 
     default: {
       // Fallback: reset to welcome
@@ -587,6 +593,44 @@ function handleNotesState(restaurant, session, actionId, rawText, db) {
 
   const context = { ...session.context, notes };
 
+  updateSession(session.id, { state: 'PAYMENT_METHOD', context }, db);
+  session.state = 'PAYMENT_METHOD';
+  session.context = context;
+
+  return {
+    replies: [formatters.askPaymentMethodMessage(Boolean(restaurant.lankaqr_enabled))],
+    ownerNotification: null,
+    session,
+    order: null,
+  };
+}
+
+function handlePaymentMethodState(restaurant, session, actionId, rawText, db) {
+  const lower = rawText.toLowerCase();
+
+  let paymentMethod = null;
+  if (actionId === 'pay_cod' || lower === 'cash' || lower === 'cod' || lower === '1') {
+    paymentMethod = 'cod';
+  } else if (actionId === 'pay_lankaqr' || lower === 'lankaqr' || lower === 'qr' || lower === '2') {
+    if (restaurant.lankaqr_enabled) {
+      paymentMethod = 'lankaqr';
+    }
+  }
+
+  if (!paymentMethod) {
+    return {
+      replies: [
+        formatters.invalidInputMessage('Please choose a payment method:'),
+        formatters.askPaymentMethodMessage(Boolean(restaurant.lankaqr_enabled)),
+      ],
+      ownerNotification: null,
+      session,
+      order: null,
+    };
+  }
+
+  const context = { ...session.context, paymentMethod };
+
   // Calculate order totals
   const subtotal = calculateSubtotal(session.cart);
   const deliveryFee = context.orderType === 'delivery' ? restaurant.delivery_fee : 0;
@@ -599,6 +643,7 @@ function handleNotesState(restaurant, session, actionId, rawText, db) {
     deliveryAddress: context.deliveryAddress || '',
     tableNumber: context.tableNumber || '',
     notes: context.notes || '',
+    paymentMethod,
     subtotal,
     deliveryFee,
     total,
@@ -616,6 +661,7 @@ function handleNotesState(restaurant, session, actionId, rawText, db) {
   };
 }
 
+
 function handleOrderConfirmationState(restaurant, session, actionId, rawText, db) {
   const lower = rawText.toLowerCase();
 
@@ -628,6 +674,8 @@ function handleOrderConfirmationState(restaurant, session, actionId, rawText, db
       db
     );
 
+    const paymentMethod = context.paymentMethod || 'cod';
+
     // Create the order
     const orderResult = createOrder({
       restaurantId: restaurant.id,
@@ -638,6 +686,7 @@ function handleOrderConfirmationState(restaurant, session, actionId, rawText, db
       deliveryAddress: context.deliveryAddress || '',
       tableNumber: context.tableNumber || '',
       notes: context.notes || '',
+      paymentMethod,
     }, db);
 
     // Reset session after successful order
@@ -647,8 +696,31 @@ function handleOrderConfirmationState(restaurant, session, actionId, rawText, db
     const customerReply = formatters.orderCompletedMessage(
       orderResult.orderNumber,
       orderResult.total,
-      restaurant.name
+      restaurant.name,
+      paymentMethod
     );
+
+    const customerReplies = [customerReply];
+
+    // If customer selected LankaQR, generate instructions & QR code
+    if (paymentMethod === 'lankaqr') {
+      const qrPayload = generateLankaQrPayload({
+        merchantName: restaurant.lankaqr_merchant_name || restaurant.name,
+        merchantId: restaurant.lankaqr_merchant_id || 'LANKAQR01',
+        amount: orderResult.total,
+        orderNumber: orderResult.orderNumber,
+        city: 'Colombo',
+      });
+
+      customerReplies.push(
+        formatters.lankaqrPaymentInstructionsMessage({
+          orderNumber: orderResult.orderNumber,
+          total: orderResult.total,
+          restaurant,
+          qrPayload,
+        })
+      );
+    }
 
     // Format owner notification
     const ownerNotification = {
@@ -658,6 +730,8 @@ function handleOrderConfirmationState(restaurant, session, actionId, rawText, db
         customerName: orderResult.customerName,
         customerPhone: session.whatsapp_number,
         orderType: orderResult.orderType,
+        paymentMethod: orderResult.paymentMethod,
+        paymentStatus: orderResult.paymentStatus,
         items: orderResult.items,
         subtotal: orderResult.subtotal,
         deliveryFee: orderResult.deliveryFee,
@@ -670,7 +744,7 @@ function handleOrderConfirmationState(restaurant, session, actionId, rawText, db
     };
 
     return {
-      replies: [customerReply],
+      replies: customerReplies,
       ownerNotification,
       session,
       order: orderResult,
@@ -701,10 +775,12 @@ function handleOrderConfirmationState(restaurant, session, actionId, rawText, db
     deliveryAddress: session.context.deliveryAddress || '',
     tableNumber: session.context.tableNumber || '',
     notes: session.context.notes || '',
+    paymentMethod: session.context.paymentMethod || 'cod',
     subtotal,
     deliveryFee,
     total,
   };
+
 
   return {
     replies: [

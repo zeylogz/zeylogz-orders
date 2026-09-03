@@ -84,6 +84,8 @@ describe('createOrder', () => {
     expect(result.deliveryFee).toBe(0);
     expect(result.total).toBe(2150);
     expect(result.items).toHaveLength(2);
+    expect(result.paymentMethod).toBe('cod');
+    expect(result.paymentStatus).toBe('unpaid');
     expect(result.status).toBe('pending');
   });
 
@@ -117,6 +119,27 @@ describe('createOrder', () => {
 
     expect(r1.orderNumber).toBe('UB-1003');
   });
+
+  it('creates an order with LankaQR payment method', () => {
+    const result = createOrder({
+      restaurantId: RESTAURANT_ID,
+      customerId,
+      customerName: 'OrderTest',
+      cart: [
+        { itemId: 1, name: 'Classic Beef Burger', price: 850, quantity: 1 },
+      ],
+      orderType: 'pickup',
+      paymentMethod: 'lankaqr',
+    }, db);
+
+    expect(result.paymentMethod).toBe('lankaqr');
+    expect(result.paymentStatus).toBe('unpaid');
+
+    const saved = getOrderById(result.orderId, RESTAURANT_ID, db);
+    expect(saved.payment_method).toBe('lankaqr');
+    expect(saved.payment_status).toBe('unpaid');
+  });
+
 
   it('preserves historical prices in order_items', () => {
     const result = createOrder({

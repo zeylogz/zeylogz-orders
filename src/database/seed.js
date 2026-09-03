@@ -12,9 +12,11 @@ export function seedDatabase(db) {
   const insertRestaurant = db.prepare(`
     INSERT OR IGNORE INTO restaurants
       (id, name, phone_number, whatsapp_phone_number_id, owner_phone_number,
-       address, currency, delivery_fee, order_prefix, is_active)
+       address, currency, delivery_fee, order_prefix, lankaqr_enabled,
+       lankaqr_merchant_name, lankaqr_merchant_id, lankaqr_bank_name,
+       lankaqr_account_number, is_active)
     VALUES
-      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   insertRestaurant.run(
@@ -27,8 +29,14 @@ export function seedDatabase(db) {
     'LKR',
     300,                          // Delivery fee: Rs. 300
     'UB',                         // Order numbers: UB-1001, UB-1002, ...
+    1,                            // LankaQR enabled
+    'Urban Bites',                // Merchant name
+    'UB94001',                    // Merchant ID
+    'Commercial Bank of Ceylon',  // Bank name
+    '1000456789',                 // Account number
     1
   );
+
 
   logger.info('Seeded restaurant: Urban Bites');
 

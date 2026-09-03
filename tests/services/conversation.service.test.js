@@ -173,11 +173,23 @@ describe('Conversation State Machine', () => {
     expect(res.session.context.deliveryAddress).toBe('123 Havelock Road, Colombo 05');
   });
 
-  it('Step 16-17: Customer skips notes -> displays final order summary with confirm buttons', () => {
+  it('Step 16: Customer skips notes -> prompts for PAYMENT_METHOD', () => {
     const res = handleIncomingMessage({
       restaurantId: RESTAURANT_ID,
       fromPhone: CUSTOMER_PHONE,
       buttonId: 'notes_skip',
+    }, db);
+
+    expect(res.replies[0].type).toBe('buttons');
+    expect(res.replies[0].body).toContain('Payment Method');
+    expect(res.session.state).toBe('PAYMENT_METHOD');
+  });
+
+  it('Step 17: Customer selects Cash -> displays final order summary with confirm buttons', () => {
+    const res = handleIncomingMessage({
+      restaurantId: RESTAURANT_ID,
+      fromPhone: CUSTOMER_PHONE,
+      buttonId: 'pay_cod',
     }, db);
 
     expect(res.replies[0].type).toBe('buttons');
@@ -187,8 +199,10 @@ describe('Conversation State Machine', () => {
     expect(res.replies[0].body).toContain('Subtotal: Rs. 2,150');
     expect(res.replies[0].body).toContain('Delivery: Rs. 300');
     expect(res.replies[0].body).toContain('Total: Rs. 2,450');
+    expect(res.replies[0].body).toContain('Cash on Delivery');
     expect(res.replies[0].body).toContain('123 Havelock Road, Colombo 05');
     expect(res.session.state).toBe('ORDER_CONFIRMATION');
+    expect(res.session.context.paymentMethod).toBe('cod');
   });
 
   it('Step 18-20: Customer confirms order -> creates order and notifies restaurant owner', () => {
@@ -210,13 +224,65 @@ describe('Conversation State Machine', () => {
     expect(res.ownerNotification.message.body).toContain('NEW ORDER');
     expect(res.ownerNotification.message.body).toContain('John Doe');
     expect(res.ownerNotification.message.body).toContain('TOTAL: Rs. 2,450');
+    expect(res.ownerNotification.message.body).toContain('Cash on Delivery');
 
     // Order exists in database
     expect(res.order).not.toBeNull();
     const dbOrder = getOrderByNumber(res.order.orderNumber, RESTAURANT_ID, db);
     expect(dbOrder).not.toBeNull();
     expect(dbOrder.total).toBe(2450);
+    expect(dbOrder.payment_method).toBe('cod');
     expect(dbOrder.status).toBe('pending');
+  });
+
+  it('LankaQR flow generates payment instructions and notifies owner with pending verification', () => {
+    const phone = '94771112233';
+
+    handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, text: 'Hi' }, db);
+    handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, buttonId: 'action_menu' }, db);
+    handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, listRowId: 'category_1' }, db);
+    handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, listRowId: 'item_1' }, db);
+    handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, buttonId: 'qty_1' }, db);
+    handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, buttonId: 'action_checkout' }, db);
+    handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, text: 'Nimal' }, db);
+    handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, buttonId: 'type_pickup' }, db);
+    handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, buttonId: 'notes_skip' }, db);
+
+    // Choose LankaQR
+    const payRes = handleIncomingMessage({
+      restaurantId: RESTAURANT_ID,
+      fromPhone: phone,
+      buttonId: 'pay_lankaqr',
+    }, db);
+
+    expect(payRes.session.state).toBe('ORDER_CONFIRMATION');
+    expect(payRes.session.context.paymentMethod).toBe('lankaqr');
+    expect(payRes.replies[0].body).toContain('LankaQR');
+
+    // Confirm order
+    const confirmRes = handleIncomingMessage({
+      restaurantId: RESTAURANT_ID,
+      fromPhone: phone,
+      buttonId: 'confirm_yes',
+    }, db);
+
+    // Customer should receive 2 messages:
+    // 1. Order confirmation
+    // 2. LankaQR payment instructions with bank details & raw QR code
+    expect(confirmRes.replies).toHaveLength(2);
+    expect(confirmRes.replies[0].body).toContain('Order received');
+    expect(confirmRes.replies[1].body).toContain('LANKAQR PAYMENT');
+    expect(confirmRes.replies[1].body).toContain('Commercial Bank of Ceylon');
+    expect(confirmRes.replies[1].body).toContain('1000456789');
+    expect(confirmRes.replies[1].body).toContain('Rs. 850');
+
+    // Owner notification
+    expect(confirmRes.ownerNotification.message.body).toContain('LankaQR');
+    expect(confirmRes.ownerNotification.message.body).toContain('Pending Verification');
+
+    // Order in DB
+    expect(confirmRes.order.paymentMethod).toBe('lankaqr');
+    expect(confirmRes.order.paymentStatus).toBe('unpaid');
   });
 
   it('Pickup flow skips delivery address and sets delivery fee to 0', () => {
@@ -241,16 +307,25 @@ describe('Conversation State Machine', () => {
     // Should skip address and go directly to NOTES
     expect(pickupRes.session.state).toBe('NOTES');
 
-    // Add a note
+    // Add a note -> goes to PAYMENT_METHOD
     const notesRes = handleIncomingMessage({
       restaurantId: RESTAURANT_ID,
       fromPhone: phone,
       text: 'Pack extra ketchup please',
     }, db);
 
-    expect(notesRes.session.state).toBe('ORDER_CONFIRMATION');
-    expect(notesRes.replies[0].body).toContain('Pack extra ketchup please');
-    expect(notesRes.replies[0].body).not.toContain('Delivery:'); // Delivery fee should be 0
+    expect(notesRes.session.state).toBe('PAYMENT_METHOD');
+
+    // Select Cash
+    const payRes = handleIncomingMessage({
+      restaurantId: RESTAURANT_ID,
+      fromPhone: phone,
+      buttonId: 'pay_cod',
+    }, db);
+
+    expect(payRes.session.state).toBe('ORDER_CONFIRMATION');
+    expect(payRes.replies[0].body).toContain('Pack extra ketchup please');
+    expect(payRes.replies[0].body).not.toContain('Delivery:'); // Delivery fee should be 0
 
     // Confirm
     const confirmRes = handleIncomingMessage({
@@ -263,6 +338,7 @@ describe('Conversation State Machine', () => {
     expect(confirmRes.order.orderType).toBe('pickup');
     expect(confirmRes.order.notes).toBe('Pack extra ketchup please');
   });
+
 
   it('Cancellation preserves cart and returns to CART state', () => {
     const phone = '94770001122';
@@ -277,9 +353,11 @@ describe('Conversation State Machine', () => {
     handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, text: 'Bob' }, db);
     handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, buttonId: 'type_pickup' }, db);
     handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, buttonId: 'notes_skip' }, db);
+    handleIncomingMessage({ restaurantId: RESTAURANT_ID, fromPhone: phone, buttonId: 'pay_cod' }, db);
 
     // Cancel order
     const cancelRes = handleIncomingMessage({
+
       restaurantId: RESTAURANT_ID,
       fromPhone: phone,
       buttonId: 'confirm_cancel',

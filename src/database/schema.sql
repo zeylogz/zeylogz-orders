@@ -21,6 +21,11 @@ CREATE TABLE IF NOT EXISTS restaurants (
   currency        TEXT    NOT NULL DEFAULT 'LKR',
   delivery_fee    INTEGER NOT NULL DEFAULT 0,
   order_prefix    TEXT    NOT NULL DEFAULT 'ORD',
+  lankaqr_enabled INTEGER NOT NULL DEFAULT 1,
+  lankaqr_merchant_name TEXT DEFAULT '',
+  lankaqr_merchant_id   TEXT DEFAULT '',
+  lankaqr_bank_name     TEXT DEFAULT '',
+  lankaqr_account_number TEXT DEFAULT '',
   is_active       INTEGER NOT NULL DEFAULT 1,
   created_at      TEXT    NOT NULL DEFAULT (datetime('now')),
   updated_at      TEXT    NOT NULL DEFAULT (datetime('now'))
@@ -90,9 +95,14 @@ CREATE TABLE IF NOT EXISTS orders (
   delivery_address TEXT   DEFAULT '',
   table_number    TEXT    DEFAULT '',
   notes           TEXT    DEFAULT '',
+  payment_method  TEXT    NOT NULL DEFAULT 'cod'
+                    CHECK(payment_method IN ('cod','lankaqr')),
+  payment_status  TEXT    NOT NULL DEFAULT 'unpaid'
+                    CHECK(payment_status IN ('unpaid','paid_pending_verification','paid','refunded')),
   subtotal        INTEGER NOT NULL DEFAULT 0,
   delivery_fee    INTEGER NOT NULL DEFAULT 0,
   total           INTEGER NOT NULL DEFAULT 0,
+
   created_at      TEXT    NOT NULL DEFAULT (datetime('now')),
   updated_at      TEXT    NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (restaurant_id) REFERENCES restaurants(id) ON DELETE CASCADE,

@@ -61,6 +61,7 @@ export function createOrder(params, db = getDb()) {
     deliveryAddress = '',
     tableNumber = '',
     notes = '',
+    paymentMethod = 'cod',
   } = params;
 
   // Validate cart against database
@@ -82,17 +83,22 @@ export function createOrder(params, db = getDb()) {
   // Generate order number
   const orderNumber = getNextOrderNumber(restaurantId, db);
 
+  // Default payment status
+  const paymentStatus = 'unpaid';
+
   // Create order + order items in a single transaction
   const createOrderTx = db.transaction(() => {
     const orderResult = db.prepare(`
       INSERT INTO orders
         (restaurant_id, customer_id, order_number, status, order_type,
          customer_name, delivery_address, table_number, notes,
+         payment_method, payment_status,
          subtotal, delivery_fee, total)
-      VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       restaurantId, customerId, orderNumber, orderType,
       customerName, deliveryAddress, tableNumber, notes,
+      paymentMethod, paymentStatus,
       subtotal, deliveryFee, total
     );
 
@@ -125,6 +131,7 @@ export function createOrder(params, db = getDb()) {
     orderNumber,
     restaurantId,
     customerId,
+    paymentMethod,
     total,
   });
 
@@ -141,8 +148,11 @@ export function createOrder(params, db = getDb()) {
     deliveryAddress,
     tableNumber,
     notes,
+    paymentMethod,
+    paymentStatus,
     status: 'pending',
   };
+
 }
 
 /**

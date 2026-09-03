@@ -139,35 +139,50 @@ describe('End-to-End WhatsApp Customer Journey', () => {
     sent = await postWebhookMessage({ from: customerPhone, text: '88 Galle Road, Mount Lavinia' });
     expect(sent[sent.length - 1].interactive.body.text).toContain('special instructions or notes');
 
-    // 10. Customer types note
+    // 10. Customer types note -> prompts for Payment Method
     clearMockSentMessages();
     sent = await postWebhookMessage({ from: customerPhone, text: 'Call when arriving at the gate' });
+    expect(sent[sent.length - 1].interactive.body.text).toContain('Payment Method');
+
+    // 11. Customer chooses LankaQR
+    clearMockSentMessages();
+    sent = await postWebhookMessage({ from: customerPhone, buttonId: 'pay_lankaqr', text: '📱 LankaQR' });
     expect(sent[sent.length - 1].interactive.body.text).toContain('Order Summary');
     expect(sent[sent.length - 1].interactive.body.text).toContain('Cheese Burger');
     expect(sent[sent.length - 1].interactive.body.text).toContain('Subtotal: Rs. 1,900');
     expect(sent[sent.length - 1].interactive.body.text).toContain('Delivery: Rs. 300');
     expect(sent[sent.length - 1].interactive.body.text).toContain('Total: Rs. 2,200');
+    expect(sent[sent.length - 1].interactive.body.text).toContain('LankaQR');
     expect(sent[sent.length - 1].interactive.body.text).toContain('Call when arriving at the gate');
 
-    // 11. Customer confirms order
+    // 12. Customer confirms order
     clearMockSentMessages();
     sent = await postWebhookMessage({ from: customerPhone, buttonId: 'confirm_yes', text: '✅ Confirm' });
 
-    // Should send 2 messages:
-    // 1. Customer order confirmation
-    // 2. Restaurant owner notification
-    expect(sent.length).toBe(2);
+    // Should send 3 messages in total:
+    // - 2 messages to Customer: Order confirmation + LankaQR payment instructions (bank details & QR code)
+    // - 1 message to Restaurant Owner: New order notification with LankaQR pending verification
+    expect(sent.length).toBe(3);
 
-    const customerConfirmation = sent.find((m) => m.to === customerPhone);
-    expect(customerConfirmation).toBeDefined();
-    expect(customerConfirmation.text.body).toContain('Order received');
-    expect(customerConfirmation.text.body).toContain('Rs. 2,200');
+    const customerMessages = sent.filter((m) => m.to === customerPhone);
+    expect(customerMessages).toHaveLength(2);
+    expect(customerMessages[0].text.body).toContain('Order received');
+    expect(customerMessages[0].text.body).toContain('Rs. 2,200');
 
+    // LankaQR instructions
+    expect(customerMessages[1].text.body).toContain('LANKAQR PAYMENT');
+    expect(customerMessages[1].text.body).toContain('Commercial Bank of Ceylon');
+    expect(customerMessages[1].text.body).toContain('1000456789');
+    expect(customerMessages[1].text.body).toContain('000201010212'); // EMVCo dynamic QR prefix
+
+    // Owner notification
     const ownerNotification = sent.find((m) => m.to === '94770000000');
     expect(ownerNotification).toBeDefined();
     expect(ownerNotification.text.body).toContain('NEW ORDER');
     expect(ownerNotification.text.body).toContain('Anura Silva');
     expect(ownerNotification.text.body).toContain('TOTAL: Rs. 2,200');
-    expect(ownerNotification.text.body).toContain('88 Galle Road, Mount Lavinia');
+    expect(ownerNotification.text.body).toContain('LankaQR');
+    expect(ownerNotification.text.body).toContain('Pending Verification');
   });
 });
+

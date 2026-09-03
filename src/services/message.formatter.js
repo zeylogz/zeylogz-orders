@@ -181,6 +181,25 @@ export function askNotesMessage() {
 }
 
 // ---------------------------------------------------------------------------
+// Payment Method Selection
+// ---------------------------------------------------------------------------
+export function askPaymentMethodMessage(lankaqrEnabled = true) {
+  const buttons = [
+    { id: 'pay_cod', title: '💵 Cash' },
+  ];
+
+  if (lankaqrEnabled) {
+    buttons.push({ id: 'pay_lankaqr', title: '📱 LankaQR' });
+  }
+
+  return {
+    type: 'buttons',
+    body: '💳 *Payment Method*\n\nHow would you like to pay for your order?',
+    buttons,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Order confirmation
 // ---------------------------------------------------------------------------
 export function orderConfirmationMessage(orderDetails) {
@@ -191,6 +210,7 @@ export function orderConfirmationMessage(orderDetails) {
     deliveryAddress,
     tableNumber,
     notes,
+    paymentMethod = 'cod',
     subtotal,
     deliveryFee,
     total,
@@ -201,6 +221,10 @@ export function orderConfirmationMessage(orderDetails) {
   );
 
   const typeLabels = { delivery: 'Delivery', pickup: 'Pickup', dine_in: 'Dine-in' };
+  const paymentLabels = {
+    cod: orderType === 'delivery' ? 'Cash on Delivery' : 'Pay at Counter',
+    lankaqr: '📱 LankaQR',
+  };
 
   let body = `🧾 *Order Summary*\n\n${itemLines.join('\n')}\n`;
   body += `\nSubtotal: ${formatPrice(subtotal)}`;
@@ -212,6 +236,7 @@ export function orderConfirmationMessage(orderDetails) {
   body += `\n*Total: ${formatPrice(total)}*`;
   body += `\n\n👤 ${customerName}`;
   body += `\n📦 ${typeLabels[orderType] || orderType}`;
+  body += `\n💳 ${paymentLabels[paymentMethod] || paymentMethod}`;
 
   if (deliveryAddress) body += `\n📍 ${deliveryAddress}`;
   if (tableNumber) body += `\n🍽 Table ${tableNumber}`;
@@ -232,10 +257,46 @@ export function orderConfirmationMessage(orderDetails) {
 // ---------------------------------------------------------------------------
 // Order completed
 // ---------------------------------------------------------------------------
-export function orderCompletedMessage(orderNumber, total, restaurantName) {
+export function orderCompletedMessage(orderNumber, total, restaurantName, paymentMethod = 'cod') {
+  let payNote = '';
+  if (paymentMethod === 'cod') {
+    payNote = `\n💵 Please have *${formatPrice(total)}* ready to pay upon handover.`;
+  }
+
   return {
     type: 'text',
-    body: `✅ *Order received!*\n\nYour order number is *${orderNumber}*\nTotal: *${formatPrice(total)}*\n\n${restaurantName} will contact you if anything needs clarification.\n\nThank you! 🙏`,
+    body: `✅ *Order received!*\n\nYour order number is *${orderNumber}*\nTotal: *${formatPrice(total)}*${payNote}\n\n${restaurantName} will contact you if anything needs clarification.\n\nThank you! 🙏`,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// LankaQR Payment Instructions
+// ---------------------------------------------------------------------------
+export function lankaqrPaymentInstructionsMessage(params) {
+  const {
+    orderNumber,
+    total,
+    restaurant,
+    qrPayload,
+  } = params;
+
+  let body = `📱 *LANKAQR PAYMENT*\n\n`;
+  body += `Please complete your payment of *${formatPrice(total)}* using any LankaQR-supported banking or digital wallet app:\n`;
+  body += `(Genie, FriMi, Flash, ComBank Q+, HNB SOLO, BOC SmartPay, WePay, etc.)\n\n`;
+
+  body += `🏦 *Bank Transfer Details:*\n`;
+  if (restaurant.lankaqr_bank_name) body += `• Bank: ${restaurant.lankaqr_bank_name}\n`;
+  if (restaurant.lankaqr_merchant_name) body += `• Account Name: ${restaurant.lankaqr_merchant_name}\n`;
+  if (restaurant.lankaqr_account_number) body += `• Account Number: ${restaurant.lankaqr_account_number}\n`;
+  body += `• Amount: *${formatPrice(total)}*\n`;
+  body += `• Reference: *${orderNumber}*\n\n`;
+
+  body += `📲 *LankaQR Raw Code:*\n\`\`\`${qrPayload}\`\`\`\n\n`;
+  body += `📷 Please reply with a screenshot or photo of your payment slip once transferred!`;
+
+  return {
+    type: 'text',
+    body,
   };
 }
 
@@ -248,6 +309,8 @@ export function ownerNotificationMessage(orderDetails) {
     customerName,
     customerPhone,
     orderType,
+    paymentMethod = 'cod',
+    paymentStatus = 'unpaid',
     items,
     subtotal,
     deliveryFee,
@@ -259,6 +322,17 @@ export function ownerNotificationMessage(orderDetails) {
   } = orderDetails;
 
   const typeLabels = { delivery: 'Delivery', pickup: 'Pickup', dine_in: 'Dine-in' };
+  const paymentLabels = {
+    cod: '💵 Cash on Delivery',
+    lankaqr: '📱 LankaQR (Transfer)',
+  };
+
+  const statusLabels = {
+    unpaid: paymentMethod === 'lankaqr' ? '⏳ Pending Verification' : 'To Collect',
+    paid_pending_verification: '⏳ Verification Needed',
+    paid: '✅ Paid',
+    refunded: '↩ Refunded',
+  };
 
   const itemLines = items.map(
     (item) => `${item.quantity} × ${item.name} — ${formatPrice(item.price * item.quantity)}`
@@ -268,6 +342,7 @@ export function ownerNotificationMessage(orderDetails) {
   body += `\n\n👤 ${customerName}`;
   body += `\n📱 ${customerPhone}`;
   body += `\n📦 ${typeLabels[orderType] || orderType}`;
+  body += `\n💳 ${paymentLabels[paymentMethod] || paymentMethod} (${statusLabels[paymentStatus] || paymentStatus})`;
   body += `\n\n*Items:*\n${itemLines.join('\n')}`;
   body += `\n\nSubtotal: ${formatPrice(subtotal)}`;
 
@@ -287,6 +362,8 @@ export function ownerNotificationMessage(orderDetails) {
     body,
   };
 }
+
+
 
 // ---------------------------------------------------------------------------
 // Error / fallback messages
