@@ -1,12 +1,18 @@
 import app from './app.js';
 import { env } from './config/env.js';
-import { logger } from './utils/logger.js';
 import { initializeDatabase, closeDatabase } from './database/db.js';
+import { seedDatabase } from './database/seed.js';
 
 // ---------------------------------------------------------------------------
-// Initialize database
+// Initialize database & auto-seed if empty
 // ---------------------------------------------------------------------------
-initializeDatabase();
+const db = initializeDatabase();
+const restaurantCount = db.prepare('SELECT COUNT(*) as count FROM restaurants').get();
+if (restaurantCount.count === 0) {
+  seedDatabase(db);
+  logger.info('Database auto-seeded with default demo data');
+}
+
 
 const PORT = env.PORT;
 
