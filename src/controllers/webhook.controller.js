@@ -101,16 +101,23 @@ export async function handleWebhook(req, res) {
   // Always respond with 200 promptly so Meta doesn't retry
   res.sendStatus(200);
 
+  // Log every incoming webhook delivery for complete visibility
+  const eventField = req.body?.entry?.[0]?.changes?.[0]?.field;
+  logger.info('Meta webhook event received', {
+    object: req.body?.object,
+    field: eventField || 'unknown',
+  });
+
   try {
     const parsed = parseIncomingWebhook(req.body);
     if (!parsed) {
-      // Could be a status update (delivered/read) or ping
+      // Could be a status update (delivered/read), non-message event, or ping
       return;
     }
 
     const { phoneNumberId, messageId, from, text, buttonId, listRowId } = parsed;
 
-    logger.info('Incoming WhatsApp message', {
+    logger.info('Incoming WhatsApp customer message', {
       phoneNumberId,
       messageId,
       from,
