@@ -45,6 +45,20 @@ export function getDb(dbPath) {
 export function initializeSchema(db) {
   const schema = readFileSync(SCHEMA_PATH, 'utf-8');
   db.exec(schema);
+
+  // Auto-migrate new columns for backwards compatibility with existing SQLite DBs
+  try {
+    const columns = db.prepare('PRAGMA table_info(restaurants)').all().map((c) => c.name);
+    if (!columns.includes('city')) {
+      db.exec("ALTER TABLE restaurants ADD COLUMN city TEXT NOT NULL DEFAULT 'Colombo'");
+    }
+    if (!columns.includes('meta_access_token')) {
+      db.exec("ALTER TABLE restaurants ADD COLUMN meta_access_token TEXT DEFAULT ''");
+    }
+  } catch (err) {
+    logger.warn('Schema migration check error', { error: err.message });
+  }
+
   logger.info('Database schema initialized');
 }
 

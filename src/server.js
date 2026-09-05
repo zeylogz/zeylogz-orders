@@ -2,6 +2,7 @@ import app from './app.js';
 import { env } from './config/env.js';
 import { initializeDatabase, closeDatabase } from './database/db.js';
 import { seedDatabase } from './database/seed.js';
+import { logger } from './utils/logger.js';
 
 // ---------------------------------------------------------------------------
 // Initialize database & auto-seed if empty
@@ -13,11 +14,10 @@ if (restaurantCount.count === 0) {
   logger.info('Database auto-seeded with default demo data');
 }
 
-
 const PORT = env.PORT;
 
 const server = app.listen(PORT, '0.0.0.0', () => {
-  logger.info(`🚀 Server running on http://0.0.0.0:${PORT}`);
+  logger.info(`🚀 Zeylogz Orders server running on http://0.0.0.0:${PORT}`);
   logger.info(`   Environment: ${env.NODE_ENV}`);
   logger.info(`   Health check: http://localhost:${PORT}/health`);
 });
@@ -42,4 +42,3 @@ function shutdown(signal) {
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
-

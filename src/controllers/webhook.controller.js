@@ -25,7 +25,7 @@ export function verifyWebhook(req, res) {
 }
 
 /**
- * Check if a message was already processed (idempotency).
+ * Check if a message was already processed (idempotency query).
  */
 export function isMessageProcessed(messageId, db = getDb()) {
   if (!messageId) return false;
@@ -45,15 +45,37 @@ export function markMessageProcessed(messageId, restaurantId, db = getDb()) {
 }
 
 /**
+ * Atomically attempt to claim and mark a message as processed.
+ * Returns true if this is the first time the message is being processed,
+ * or false if it was already processed (or is currently being processed).
+ */
+export function tryMarkMessageProcessed(messageId, restaurantId, db = getDb()) {
+  if (!messageId) return true;
+  const result = db.prepare(`
+    INSERT OR IGNORE INTO processed_messages (message_id, restaurant_id)
+    VALUES (?, ?)
+  `).run(messageId, restaurantId);
+  return result.changes > 0;
+}
+
+/**
  * Validate incoming X-Hub-Signature-256 header when META_APP_SECRET is set.
  */
 export function verifySignature(rawBody, signature, appSecret = env.META_APP_SECRET) {
   if (!appSecret || !signature) return true; // Signature check skipped if secret is not set
 
   try {
-    const hash = crypto.createHmac('sha256', appSecret).update(rawBody).digest('hex');
+    const rawBuffer = Buffer.isBuffer(rawBody) ? rawBody : Buffer.from(rawBody || '', 'utf-8');
+    const hash = crypto.createHmac('sha256', appSecret).update(rawBuffer).digest('hex');
     const expected = `sha256=${hash}`;
-    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+    const sigBuffer = Buffer.from(signature);
+    const expectedBuffer = Buffer.from(expected);
+
+    if (sigBuffer.length !== expectedBuffer.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(sigBuffer, expectedBuffer);
   } catch (err) {
     logger.error('Signature verification error', { error: err.message });
     return false;
@@ -66,6 +88,15 @@ export function verifySignature(rawBody, signature, appSecret = env.META_APP_SEC
  */
 export async function handleWebhook(req, res) {
   const db = getDb();
+
+  // Signature verification if META_APP_SECRET is configured
+  if (env.META_APP_SECRET) {
+    const signature = req.headers['x-hub-signature-256'];
+    if (!verifySignature(req.rawBody, signature, env.META_APP_SECRET)) {
+      logger.warn('Meta webhook signature verification failed');
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+  }
 
   // Always respond with 200 promptly so Meta doesn't retry
   res.sendStatus(200);
@@ -91,23 +122,24 @@ export async function handleWebhook(req, res) {
     // Resolve restaurant by WhatsApp phone number ID
     let restaurant = getRestaurantByPhoneNumberId(phoneNumberId, db);
 
-    // Fallback for development/testing if phone number ID is not yet mapped
+    // Fallback only in development or test mode for local simulation convenience
     if (!restaurant) {
-      restaurant = getRestaurantById(1, db); // Fallback to demo restaurant 1
+      if (env.NODE_ENV !== 'production') {
+        restaurant = getRestaurantById(1, db); // Fallback to demo restaurant 1 in dev/test
+      }
       if (!restaurant) {
-        logger.error('No matching restaurant found for phone number ID', { phoneNumberId });
+        logger.error('No matching restaurant found for phone number ID', { phoneNumberId, env: env.NODE_ENV });
         return;
       }
     }
 
-    // Idempotency check: avoid duplicate processing of retried webhook messages
-    if (messageId && isMessageProcessed(messageId, db)) {
-      logger.info('Duplicate webhook message received, skipping processing', { messageId });
-      return;
-    }
-
+    // Atomic idempotency check: guarantees duplicate or concurrent webhook messages are skipped
     if (messageId) {
-      markMessageProcessed(messageId, restaurant.id, db);
+      const isNew = tryMarkMessageProcessed(messageId, restaurant.id, db);
+      if (!isNew) {
+        logger.info('Duplicate webhook message received, skipping processing', { messageId });
+        return;
+      }
     }
 
     // Pass event to conversation state machine
@@ -119,10 +151,13 @@ export async function handleWebhook(req, res) {
       listRowId,
     }, db);
 
+    const outgoingPhoneId = restaurant.whatsapp_phone_number_id || phoneNumberId;
+    const accessToken = restaurant.meta_access_token || env.META_ACCESS_TOKEN;
+
     // Send customer responses
     if (result.replies && result.replies.length > 0) {
       for (const reply of result.replies) {
-        await sendFormattedMessage(from, reply, phoneNumberId);
+        await sendFormattedMessage(from, reply, outgoingPhoneId, accessToken);
       }
     }
 
@@ -134,7 +169,8 @@ export async function handleWebhook(req, res) {
       await sendFormattedMessage(
         result.ownerNotification.to,
         result.ownerNotification.message,
-        phoneNumberId
+        outgoingPhoneId,
+        accessToken
       );
     }
   } catch (err) {

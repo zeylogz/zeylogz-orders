@@ -1,7 +1,7 @@
 {
-  "name": "whatsapp-ordering-saas",
+  "name": "zeylogz-orders",
   "version": "0.1.0",
-  "description": "WhatsApp ordering system for Sri Lankan small businesses",
+  "description": "Zeylogz Orders — WhatsApp ordering SaaS for Sri Lankan restaurants and food businesses by Zeylogz",
   "type": "module",
   "main": "src/server.js",
   "scripts": {
@@ -14,20 +14,21 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/InojBhashitha/whatsapp-ordering-saas.git"
+    "url": "git+https://github.com/zeylogz/zeylogz-orders.git"
   },
   "keywords": [
     "whatsapp",
     "ordering",
     "saas",
-    "sri-lanka"
+    "sri-lanka",
+    "zeylogz"
   ],
-  "author": "",
+  "author": "Zeylogz",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/InojBhashitha/whatsapp-ordering-saas/issues"
+    "url": "https://github.com/zeylogz/zeylogz-orders/issues"
   },
-  "homepage": "https://github.com/InojBhashitha/whatsapp-ordering-saas#readme",
+  "homepage": "https://github.com/zeylogz/zeylogz-orders#readme",
   "dependencies": {
     "better-sqlite3": "^13.0.3",
     "dotenv": "^17.4.2",

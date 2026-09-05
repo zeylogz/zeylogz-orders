@@ -1,9 +1,7 @@
--- =============================================================================
--- WhatsApp Ordering SaaS — Database Schema
--- =============================================================================
--- All tables include restaurant_id for multi-tenant scoping.
--- Prices are stored as integers (LKR has no subunits worth tracking).
--- =============================================================================
+-- ---------------------------------------------------------------------------
+-- Zeylogz Orders — Database Schema
+-- Multi-tenant WhatsApp ordering for Sri Lankan restaurants
+-- ---------------------------------------------------------------------------
 
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
@@ -18,6 +16,7 @@ CREATE TABLE IF NOT EXISTS restaurants (
   whatsapp_phone_number_id TEXT NOT NULL UNIQUE,
   owner_phone_number       TEXT NOT NULL,
   address         TEXT,
+  city            TEXT    NOT NULL DEFAULT 'Colombo',
   currency        TEXT    NOT NULL DEFAULT 'LKR',
   delivery_fee    INTEGER NOT NULL DEFAULT 0,
   order_prefix    TEXT    NOT NULL DEFAULT 'ORD',
@@ -26,6 +25,7 @@ CREATE TABLE IF NOT EXISTS restaurants (
   lankaqr_merchant_id   TEXT DEFAULT '',
   lankaqr_bank_name     TEXT DEFAULT '',
   lankaqr_account_number TEXT DEFAULT '',
+  meta_access_token      TEXT DEFAULT '',
   is_active       INTEGER NOT NULL DEFAULT 1,
   created_at      TEXT    NOT NULL DEFAULT (datetime('now')),
   updated_at      TEXT    NOT NULL DEFAULT (datetime('now'))
@@ -68,7 +68,6 @@ CREATE TABLE IF NOT EXISTS menu_items (
   FOREIGN KEY (category_id)   REFERENCES menu_categories(id) ON DELETE CASCADE
 );
 
-
 -- ---------------------------------------------------------------------------
 -- Customers
 -- ---------------------------------------------------------------------------
@@ -107,7 +106,6 @@ CREATE TABLE IF NOT EXISTS orders (
   subtotal        INTEGER NOT NULL DEFAULT 0,
   delivery_fee    INTEGER NOT NULL DEFAULT 0,
   total           INTEGER NOT NULL DEFAULT 0,
-
   created_at      TEXT    NOT NULL DEFAULT (datetime('now')),
   updated_at      TEXT    NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (restaurant_id) REFERENCES restaurants(id) ON DELETE CASCADE,
@@ -147,7 +145,6 @@ CREATE TABLE IF NOT EXISTS conversation_sessions (
   FOREIGN KEY (restaurant_id) REFERENCES restaurants(id) ON DELETE CASCADE,
   FOREIGN KEY (customer_id)   REFERENCES customers(id) ON DELETE SET NULL
 );
-
 
 -- ---------------------------------------------------------------------------
 -- Processed Messages (idempotency)

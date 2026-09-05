@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import crypto from 'crypto';
 import app from '../../src/app.js';
 import { env } from '../../src/config/env.js';
 import { initializeDatabase, closeDatabase } from '../../src/database/db.js';
 import { seedDatabase } from '../../src/database/seed.js';
 import { getMockSentMessages, clearMockSentMessages } from '../../src/services/whatsapp.service.js';
+import { verifySignature, tryMarkMessageProcessed } from '../../src/controllers/webhook.controller.js';
 
 let server;
 let baseUrl;
@@ -31,6 +33,15 @@ beforeEach(() => {
 });
 
 describe('Meta Webhook Integration (/webhook)', () => {
+  describe('Security Headers', () => {
+    it('sets standard security headers on webhook responses', async () => {
+      const res = await fetch(`${baseUrl}/health`);
+      expect(res.headers.get('x-content-type-options')).toBe('nosniff');
+      expect(res.headers.get('x-frame-options')).toBe('DENY');
+      expect(res.headers.get('referrer-policy')).toBe('strict-origin-when-cross-origin');
+    });
+  });
+
   describe('GET /webhook (Verification Challenge)', () => {
     it('returns challenge with 200 when verify token matches', async () => {
       const challenge = 'test_challenge_12345';
@@ -54,6 +65,28 @@ describe('Meta Webhook Integration (/webhook)', () => {
       const res = await fetch(url);
 
       expect(res.status).toBe(403);
+    });
+  });
+
+  describe('Webhook Security & Signature Verification', () => {
+    it('verifySignature validates HMAC-SHA256 signature correctly', () => {
+      const secret = 'my_test_app_secret_123';
+      const body = JSON.stringify({ hello: 'world' });
+      const hash = crypto.createHmac('sha256', secret).update(body).digest('hex');
+      const validSig = `sha256=${hash}`;
+
+      expect(verifySignature(body, validSig, secret)).toBe(true);
+      expect(verifySignature(body, 'sha256=wrong_signature', secret)).toBe(false);
+      expect(verifySignature(body, '', secret)).toBe(true); // skips if signature not provided and not required
+    });
+
+    it('tryMarkMessageProcessed atomically enforces idempotency', () => {
+      const msgId = `atomic_test_${Date.now()}`;
+      const firstTry = tryMarkMessageProcessed(msgId, 1);
+      expect(firstTry).toBe(true);
+
+      const secondTry = tryMarkMessageProcessed(msgId, 1);
+      expect(secondTry).toBe(false);
     });
   });
 
@@ -136,7 +169,6 @@ describe('Meta Webhook Integration (/webhook)', () => {
         ],
       };
 
-
       clearMockSentMessages();
 
       const res = await fetch(`${baseUrl}/webhook`, {
@@ -148,7 +180,7 @@ describe('Meta Webhook Integration (/webhook)', () => {
       expect(res.status).toBe(200);
       await new Promise((r) => setTimeout(r, 50));
 
-      // Should be 0 since message ID wamid.msg_test_001 was already marked as processed
+      // Should be 0 since message ID was already marked as processed
       const sent = getMockSentMessages();
       expect(sent).toHaveLength(0);
     });

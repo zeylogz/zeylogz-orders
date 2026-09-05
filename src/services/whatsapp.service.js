@@ -15,19 +15,19 @@ export function clearMockSentMessages() {
 /**
  * Check if real Meta credentials are configured.
  */
-export function isMetaConfigured() {
+export function isMetaConfigured(token = env.META_ACCESS_TOKEN, phoneId = env.META_PHONE_NUMBER_ID) {
   return Boolean(
-    env.META_ACCESS_TOKEN &&
-    env.META_ACCESS_TOKEN !== 'your_meta_access_token_here' &&
-    env.META_PHONE_NUMBER_ID &&
-    env.META_PHONE_NUMBER_ID !== 'your_phone_number_id_here'
+    token &&
+    token !== 'your_meta_access_token_here' &&
+    phoneId &&
+    phoneId !== 'your_phone_number_id_here'
   );
 }
 
 /**
  * Send an API call to Meta WhatsApp Cloud API Graph endpoint.
  */
-async function callWhatsAppGraphApi(endpoint, payload) {
+async function callWhatsAppGraphApi(endpoint, payload, accessToken = env.META_ACCESS_TOKEN) {
   const url = `https://graph.facebook.com/${env.META_GRAPH_API_VERSION}/${endpoint}`;
 
   logger.info('Calling Meta WhatsApp Cloud API', {
@@ -39,7 +39,7 @@ async function callWhatsAppGraphApi(endpoint, payload) {
   const response = await fetch(url, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${env.META_ACCESS_TOKEN}`,
+      'Authorization': `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(payload),
@@ -58,7 +58,12 @@ async function callWhatsAppGraphApi(endpoint, payload) {
 /**
  * Send a plain text message to a WhatsApp user.
  */
-export async function sendTextMessage(to, text, phoneNumberId = env.META_PHONE_NUMBER_ID) {
+export async function sendTextMessage(
+  to,
+  text,
+  phoneNumberId = env.META_PHONE_NUMBER_ID,
+  accessToken = env.META_ACCESS_TOKEN
+) {
   const payload = {
     messaging_product: 'whatsapp',
     recipient_type: 'individual',
@@ -70,20 +75,27 @@ export async function sendTextMessage(to, text, phoneNumberId = env.META_PHONE_N
     },
   };
 
-  if (!isMetaConfigured() || env.NODE_ENV === 'test') {
+  if (!isMetaConfigured(accessToken, phoneNumberId) || env.NODE_ENV === 'test') {
     logger.debug('[MOCK WhatsApp] Text message queued', payload);
     mockSentMessages.push({ ...payload, timestamp: new Date().toISOString() });
     return { mock: true, success: true, messages: [{ id: `mock_msg_${Date.now()}` }] };
   }
 
-  return callWhatsAppGraphApi(`${phoneNumberId}/messages`, payload);
+  return callWhatsAppGraphApi(`${phoneNumberId}/messages`, payload, accessToken);
 }
 
 /**
  * Send an interactive buttons message (up to 3 buttons).
  * WhatsApp limits button titles to 20 characters.
  */
-export async function sendInteractiveButtons(to, body, buttons, footer = '', phoneNumberId = env.META_PHONE_NUMBER_ID) {
+export async function sendInteractiveButtons(
+  to,
+  body,
+  buttons,
+  footer = '',
+  phoneNumberId = env.META_PHONE_NUMBER_ID,
+  accessToken = env.META_ACCESS_TOKEN
+) {
   const payload = {
     messaging_product: 'whatsapp',
     recipient_type: 'individual',
@@ -105,13 +117,13 @@ export async function sendInteractiveButtons(to, body, buttons, footer = '', pho
     },
   };
 
-  if (!isMetaConfigured() || env.NODE_ENV === 'test') {
+  if (!isMetaConfigured(accessToken, phoneNumberId) || env.NODE_ENV === 'test') {
     logger.debug('[MOCK WhatsApp] Buttons message queued', payload);
     mockSentMessages.push({ ...payload, timestamp: new Date().toISOString() });
     return { mock: true, success: true, messages: [{ id: `mock_msg_${Date.now()}` }] };
   }
 
-  return callWhatsAppGraphApi(`${phoneNumberId}/messages`, payload);
+  return callWhatsAppGraphApi(`${phoneNumberId}/messages`, payload, accessToken);
 }
 
 /**
@@ -122,7 +134,14 @@ export async function sendInteractiveButtons(to, body, buttons, footer = '', pho
  * - row title: 24 chars
  * - row description: 72 chars
  */
-export async function sendInteractiveList(to, body, buttonText, sections, phoneNumberId = env.META_PHONE_NUMBER_ID) {
+export async function sendInteractiveList(
+  to,
+  body,
+  buttonText,
+  sections,
+  phoneNumberId = env.META_PHONE_NUMBER_ID,
+  accessToken = env.META_ACCESS_TOKEN
+) {
   const payload = {
     messaging_product: 'whatsapp',
     recipient_type: 'individual',
@@ -145,19 +164,24 @@ export async function sendInteractiveList(to, body, buttonText, sections, phoneN
     },
   };
 
-  if (!isMetaConfigured() || env.NODE_ENV === 'test') {
+  if (!isMetaConfigured(accessToken, phoneNumberId) || env.NODE_ENV === 'test') {
     logger.debug('[MOCK WhatsApp] List message queued', payload);
     mockSentMessages.push({ ...payload, timestamp: new Date().toISOString() });
     return { mock: true, success: true, messages: [{ id: `mock_msg_${Date.now()}` }] };
   }
 
-  return callWhatsAppGraphApi(`${phoneNumberId}/messages`, payload);
+  return callWhatsAppGraphApi(`${phoneNumberId}/messages`, payload, accessToken);
 }
 
 /**
  * Send formatted message object (text, buttons, or list) produced by message.formatter.js.
  */
-export async function sendFormattedMessage(to, messageObj, phoneNumberId = env.META_PHONE_NUMBER_ID) {
+export async function sendFormattedMessage(
+  to,
+  messageObj,
+  phoneNumberId = env.META_PHONE_NUMBER_ID,
+  accessToken = env.META_ACCESS_TOKEN
+) {
   if (!messageObj) return null;
 
   switch (messageObj.type) {
@@ -167,7 +191,8 @@ export async function sendFormattedMessage(to, messageObj, phoneNumberId = env.M
         messageObj.body,
         messageObj.buttons,
         messageObj.footer || '',
-        phoneNumberId
+        phoneNumberId,
+        accessToken
       );
 
     case 'list':
@@ -176,29 +201,18 @@ export async function sendFormattedMessage(to, messageObj, phoneNumberId = env.M
         messageObj.body,
         messageObj.buttonText || 'Select',
         messageObj.sections,
-        phoneNumberId
+        phoneNumberId,
+        accessToken
       );
 
     case 'text':
     default:
-      return sendTextMessage(to, messageObj.body, phoneNumberId);
+      return sendTextMessage(to, messageObj.body, phoneNumberId, accessToken);
   }
 }
 
 /**
  * Parse incoming Meta WhatsApp Cloud API webhook body.
- *
- * Returns normalized object or null if payload is not a customer message (e.g. status update):
- * {
- *   phoneNumberId,
- *   messageId,
- *   from,
- *   timestamp,
- *   type,
- *   text,
- *   buttonId,
- *   listRowId
- * }
  */
 export function parseIncomingWebhook(body) {
   try {
@@ -247,7 +261,6 @@ export function parseIncomingWebhook(body) {
         text = interactive.list_reply?.title || '';
       }
     } else if (type === 'button') {
-      // Legacy quick reply buttons
       buttonId = message.button?.payload || message.button?.text || '';
       text = message.button?.text || '';
     }

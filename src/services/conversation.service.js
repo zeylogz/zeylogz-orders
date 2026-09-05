@@ -762,7 +762,7 @@ function handleOrderConfirmationState(restaurant, session, actionId, rawText, db
         merchantId: restaurant.lankaqr_merchant_id || 'LANKAQR01',
         amount: orderResult.total,
         orderNumber: orderResult.orderNumber,
-        city: 'Colombo',
+        city: restaurant.city || 'Colombo',
       });
 
       customerReplies.push(

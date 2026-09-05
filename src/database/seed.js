@@ -12,11 +12,11 @@ export function seedDatabase(db) {
   const insertRestaurant = db.prepare(`
     INSERT OR IGNORE INTO restaurants
       (id, name, phone_number, whatsapp_phone_number_id, owner_phone_number,
-       address, currency, delivery_fee, order_prefix, lankaqr_enabled,
+       address, city, currency, delivery_fee, order_prefix, lankaqr_enabled,
        lankaqr_merchant_name, lankaqr_merchant_id, lankaqr_bank_name,
        lankaqr_account_number, is_active)
     VALUES
-      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   insertRestaurant.run(
@@ -26,6 +26,7 @@ export function seedDatabase(db) {
     'DEMO_PHONE_NUMBER_ID',       // Replaced with real ID when connected
     '+94770000000',               // Owner's WhatsApp number
     '42 Galle Road, Colombo 03',
+    'Colombo',
     'LKR',
     300,                          // Delivery fee: Rs. 300
     'UB',                         // Order numbers: UB-1001, UB-1002, ...
@@ -36,7 +37,6 @@ export function seedDatabase(db) {
     '1000456789',                 // Account number
     1
   );
-
 
   logger.info('Seeded restaurant: Urban Bites');
 
@@ -100,7 +100,6 @@ export function seedDatabase(db) {
   insertItems();
 
   logger.info(`Seeded ${items.length} menu items`);
-
 
   return {
     restaurant: { id: 1, name: 'Urban Bites' },

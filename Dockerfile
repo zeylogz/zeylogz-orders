@@ -1,5 +1,6 @@
 # ---------------------------------------------------------------------------
-# WhatsApp Ordering SaaS MVP Dockerfile
+# Zeylogz Orders — Dockerfile
+# Multi-tenant WhatsApp Ordering Platform by Zeylogz
 # ---------------------------------------------------------------------------
 FROM node:20-alpine AS builder
 
@@ -30,7 +31,7 @@ COPY src/ ./src/
 RUN mkdir -p /app/data
 
 # Mount persistent volume for SQLite database in production:
-# docker run -v my-db-data:/app/data -p 3000:3000 whatsapp-ordering
+# docker run -v my-db-data:/app/data -p 3000:3000 zeylogz-orders
 VOLUME ["/app/data"]
 
 EXPOSE 3000

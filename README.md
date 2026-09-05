@@ -1,19 +1,18 @@
-# WhatsApp Ordering SaaS MVP for Sri Lankan Small Businesses
+# Zeylogz Orders — WhatsApp Ordering SaaS for Sri Lanka
 
-A lightweight, multi-tenant WhatsApp ordering SaaS application designed for independent restaurants, cafes, bakeries, and takeaways in Sri Lanka. Customers browse interactive menus, build carts, choose delivery or pickup, and place orders directly inside WhatsApp without downloading apps or paying marketplace commissions.
+A lightweight, multi-tenant WhatsApp ordering SaaS platform built by **Zeylogz** for independent restaurants, cafes, bakeries, and cloud kitchens in Sri Lanka. Customers browse interactive menus, build carts, choose delivery or pickup, and place orders directly inside WhatsApp without downloading mobile apps or paying 20%–30% food aggregator commissions.
 
 ---
 
 ## 1. Product Overview
 
-The WhatsApp Ordering SaaS allows food businesses in Sri Lanka to receive direct customer orders via WhatsApp. 
-The system features:
+**Zeylogz Orders** enables Sri Lankan food businesses to receive direct customer orders via WhatsApp with full automation:
 - **Bilingual (English & Sinhala / සිංහල)**: One-tap language toggle (`[🇱🇰 සිංහල]`), complete localized catalogs, prompts, and Sinhala rupee formatting (`රු.`).
-- **Zero App Download**: Customers order directly in WhatsApp using modern interactive buttons and list menus.
-- **LankaQR Payments**: Dynamic EMVCo QR code generation, instant CBSL-compliant transfer instructions, and owner payment verification.
+- **Zero App Download**: Customers order directly inside WhatsApp using modern interactive buttons and list menus.
+- **LankaQR Payments (CBSL Standard)**: Dynamic EMVCo QR code generation, instant CBSL-compliant transfer instructions, and owner payment verification.
 - **Multi-Tenant Ready**: Designed from day one to support multiple restaurants with database-level isolation (`restaurant_id` on all tables).
-- **Automated Operations**: Automatic cart calculation in LKR, delivery fee handling, order numbering, and instant notification sent to the restaurant owner's WhatsApp.
-- **Idempotent & Resilient**: Handles retried webhooks safely and prevents duplicate orders.
+- **Automated Operations**: Automatic cart calculation in LKR, delivery fee handling, sequential order numbering (e.g. `UB-1001`), and instant notifications sent to the restaurant owner's WhatsApp.
+- **Idempotent & Secure**: Atomic deduplication prevents duplicate orders on retried Meta webhooks; SHA-256 signature verification protects incoming requests.
 
 ---
 
@@ -26,7 +25,6 @@ Customer: Hi
 Bot:       👋 Welcome to Urban Bites!
            How can we help you today?
            [🍔 View Menu]  [🛒 View Cart]  [🇱🇰 සිංහල]
-
 
 Customer: [🍔 View Menu]
 Bot:       📋 Our Menu
@@ -59,19 +57,20 @@ Customer: [✅ Checkout]
 Bot:       📝 Checkout
            Please type your name:
 
-Customer: Kamal Perera
+Customer: Anura Silva
 Bot:       🚗 How would you like to receive your order?
            [🚚 Delivery]  [🏪 Pickup]  [🍽 Dine-in]
 
 Customer: [🚚 Delivery]
 Bot:       📍 Please type your delivery address:
 
-Customer: 42 Galle Road, Colombo 03
+Customer: 42 Marine Drive, Colombo 03
 Bot:       📝 Any special instructions or notes?
-           [No, thanks] (or type your notes)
+           (e.g., "No onions", "Extra spicy")
+           [No, thanks]
 
-Customer: Extra napkins please
-Bot:       💳 *Payment Method*
+Customer: [No, thanks]
+Bot:       💳 Payment Method
            How would you like to pay for your order?
            [💵 Cash]  [📱 LankaQR]
 
@@ -82,212 +81,93 @@ Bot:       🧾 Order Summary
            Delivery: Rs. 300
            Total: Rs. 2,000
 
-           👤 Kamal Perera
+           👤 Anura Silva
            📦 Delivery
-           💳 📱 LankaQR
-           📍 42 Galle Road, Colombo 03
-           📝 Extra napkins please
+           💳 LankaQR
+           📍 42 Marine Drive, Colombo 03
 
-           Confirm this order?
+           Would you like to confirm this order?
            [✅ Confirm]  [❌ Cancel]
 
 Customer: [✅ Confirm]
-Bot:       ✅ Order received!
-           Your order number is UB-1001.
+Bot:       🎉 Thank you! Your order has been placed successfully.
+           Order Number: UB-1001
            Total: Rs. 2,000
-           Urban Bites will contact you if anything needs clarification.
-           Thank you! 🙏
+           Urban Bites will prepare your order shortly!
 
-           📱 *LANKAQR PAYMENT*
-           Please complete your payment of Rs. 2,000 using any LankaQR-supported banking or digital wallet app:
-           (Genie, FriMi, Flash, ComBank Q+, HNB SOLO, BOC SmartPay, WePay, etc.)
-
-           🏦 *Bank Transfer Details:*
-           • Bank: Commercial Bank of Ceylon
-           • Account Name: Urban Bites
-           • Account Number: 1000456789
-           • Amount: Rs. 2,000
-           • Reference: UB-1001
-
-           📲 LankaQR Raw Code:
-           00020101021226420022LK.LANKACLEAR.LANKAQR0107UB9400152045812530314454072000.005802LK5911Urban Bites6007Colombo62110107UB-10016304...
-
-### Sinhala Ordering Experience (සිංහල)
-
+           📱 LankaQR Payment Details
+           Amount: Rs. 2,000.00
+           Reference: UB-1001
+           Bank: Commercial Bank of Ceylon
+           Account Name: Urban Bites
+           Account Number: 1000456789
+           (Scan with any Sri Lankan bank app)
 ```
-Customer: [🇱🇰 සිංහල]
-Bot:       👋 Urban Bites වෙත සාදරයෙන් පිළිගනිමු!
-           අද ඔබ කැමති කුමක් කිරීමටද?
-           [🍔 මෙනුව බලන්න]   [🛒 මගේ බෑගය]   [🇬🇧 English]
-
-Customer: [🍔 මෙනුව බලන්න]
-Bot:       📋 අපගේ මෙනුව
-           කරුණාකර වර්ගයක් තෝරන්න:
-           - 🍔 බර්ගර්
-           - 🍟 අතුරු කෑම
-           - 🥤 බීම වර්ග
-
-Customer: [🍔 බර්ගර්]
-Bot:       🍔 බර්ගර්
-           බෑගයට එක් කිරීමට අයිතමයක් තෝරන්න:
-           - ක්ලැසික් බීෆ් බර්ගර් (රු. 850)
-           - ක්‍රිස්පි චිකන් බර්ගර් (රු. 900)
-           - චීස් බර්ගර් (රු. 950)
-
-Customer: [චීස් බර්ගර්]
-Bot:       🛒 චීස් බර්ගර්
-           💰 රු. 950
-           ඔබට කීයක් අවශ්‍යද?
-           [1]   [2]   [3] (හෝ අංකයක් ටයිප් කරන්න 1-99)
-
-Customer: [2]
-Bot:       ✅ චීස් බර්ගර් 2ක් බෑගයට එකතු කළා!
-           🛒 ඔබගේ බෑගය:
-           2 × චීස් බර්ගර් — රු. 1,900
-           එකතුව: රු. 1,900
-           [➕ තව එක් කරන්න]   [🗑 ඉවත් කරන්න]   [✅ ඇණවුම් කරන්න]
-
-Customer: [✅ ඇණවුම් කරන්න]
-Bot:       📝 ඇණවුම් කිරීම
-           කරුණාකර ඔබගේ නම ටයිප් කරන්න:
-
-Customer: කමල් පෙරේරා
-Bot:       🚗 ඔබ ඇණවුම ලබාගන්නේ කෙසේද?
-           [🚚 ඩිලිවරි]   [🏪 රැගෙන යාම]   [🍽 ආපනශාලාවේදී]
-
-Customer: [🚚 ඩිලිවරි]
-Bot:       📍 කරුණාකර ඔබගේ ඩිලිවරි ලිපිනය ටයිප් කරන්න:
-
-Customer: 42 ගාලු පාර, කොළඹ 03
-Bot:       💳 ගෙවීම් ක්‍රමය
-           ඔබ මුදල් ගෙවීමට කැමති කෙසේද?
-           [💵 මුදලින්]   [📱 ලංකා QR]
-
-Customer: [📱 ලංකා QR]
-Bot:       🧾 ඇණවුම් සාරාංශය
-           2 × චීස් බර්ගර්
-           අයිතම එකතුව: රු. 1,900
-           ඩිලිවරි ගාස්තු: රු. 300
-           මුළු එකතුව: රු. 2,200
-
-           👤 කමල් පෙරේරා
-           📦 ඩිලිවරි
-           💳 📱 ලංකා QR
-           📍 42 ගාලු පාර, කොළඹ 03
-
-           මෙම ඇණවුම තහවුරු කරනවාද?
-           [✅ තහවුරු කරන්න]   [❌ අවලංගු කරන්න]
-
-Customer: [✅ තහවුරු කරන්න]
-Bot:       ✅ ඔබගේ ඇණවුම සාර්ථකව ලැබුණා!
-           ඇණවුම් අංකය: UB-1002
-           මුළු මුදල: රු. 2,200
-           කිසියම් පැහැදිලි කිරීමක් අවශ්‍ය නම් Urban Bites ඔබව සම්බන්ධ කර ගනු ඇත.
-           ස්තූතියි! 🙏
-
-           📱 ලංකා QR ගෙවීම
-           කරුණාකර ඔබගේ රු. 2,200 මුදල ඕනෑම ලංකා QR සහය දක්වන බැංකු හෝ ඩිජිටල් ඇප් එකකින් ගෙවන්න:
-           (Genie, FriMi, Flash, ComBank Q+, HNB SOLO, BOC SmartPay, WePay, ආදිය)
-
-           🏦 බැංකු තොරතුරු:
-           • බැංකුව: Commercial Bank of Ceylon
-           • ගිණුමේ නම: Urban Bites
-           • ගිණුම් අංකය: 1000456789
-           • මුදල: රු. 2,200
-           • යොමු අංකය (Ref): UB-1002
-```
-
-### Restaurant Owner WhatsApp Notification
-
-
-```
-🔔 NEW ORDER
-
-Order: UB-1001
-👤 Kamal Perera
-📱 94771234567
-📦 Delivery
-💳 📱 LankaQR (Transfer) (⏳ Pending Verification)
-
-Items:
-2 × Classic Beef Burger — Rs. 1,700
-
-Subtotal: Rs. 1,700
-Delivery: Rs. 300
-TOTAL: Rs. 2,000
-
-📍 42 Galle Road, Colombo 03
-📝 Extra napkins please
-🕐 07:45 PM
-```
-
 
 ---
 
-## 3. Architecture
+## 3. Architecture & Data Flow
 
 ```
-                                +---------------------------+
-                                |  Customer WhatsApp App    |
-                                +-------------+-------------+
-                                              |
-                                              v
-                                +---------------------------+
-                                | Meta WhatsApp Cloud API   |
-                                +-------------+-------------+
-                                              |
-                          POST /webhook       v
-                    +------------------------------------+
-                    |        Node.js / Express           |
-                    |                                    |
-                    |  - Webhook verification & auth     |
-                    |  - Idempotency filter              |
-                    |  - Phone number ID tenant routing  |
-                    |  - Conversation State Machine      |
-                    |  - Session management (24h TTL)    |
-                    |  - Cart & Order calculations       |
-                    +-----------------+------------------+
-                                      |
-                       SQL queries    v
-                    +------------------------------------+
-                    |        SQLite (better-sqlite3)     |
-                    |  - restaurants                     |
-                    |  - menu_categories / menu_items    |
-                    |  - customers                       |
-                    |  - orders / order_items            |
-                    |  - conversation_sessions           |
-                    |  - processed_messages              |
-                    +-----------------+------------------+
-                                      |
-                                      v
-                    +------------------------------------+
-                    | Graph API Outgoing Notifications   |
-                    |  - Customer confirmation message   |
-                    |  - Restaurant owner notification   |
-                    +------------------------------------+
++----------------------------------------------------------------+
+|                        Customer WhatsApp                       |
++-------------------------------+--------------------------------+
+                                |
+                                v
++----------------------------------------------------------------+
+|                   Meta WhatsApp Cloud API                      |
++-------------------------------+--------------------------------+
+                                |  POST /webhook (events)
+                                v
++----------------------------------------------------------------+
+|                     Zeylogz Orders API                         |
+|                                                                |
+|  1. Webhook Signature Check (X-Hub-Signature-256)              |
+|  2. Atomic Idempotency Check (processed_messages)              |
+|  3. Multi-Tenant Lookup (restaurants by phone_number_id)       |
+|  4. Conversation State Machine (conversation.service.js)       |
+|  5. DB Price Re-validation (cart.service.js)                   |
+|  6. Atomic Order Creation (order.service.js)                   |
++-------------------------------+--------------------------------+
+                                |
+                                v
++----------------------------------------------------------------+
+|             SQLite WAL Database (ordering.db)                  |
+|  - restaurants             - customers                         |
+|  - menu_categories         - orders & order_items              |
+|  - menu_items              - conversation_sessions             |
++-------------------------------+--------------------------------+
+                                |
+                                v
++----------------------------------------------------------------+
+|                    Outgoing WhatsApp Dispatch                  |
+|  - Customer Order Confirmation & LankaQR Instructions          |
+|  - Restaurant Owner / Kitchen WhatsApp Alert                   |
++----------------------------------------------------------------+
 ```
 
 ---
 
 ## 4. Tech Stack
 
-- **Runtime**: Node.js (v18+) with modern ES modules (`type: "module"`)
-- **Web Framework**: Express.js
+- **Runtime**: Node.js (v20+) with modern ES modules (`type: "module"`)
+- **Web Framework**: Express.js with custom security headers and raw-body verification
 - **Database**: SQLite with `better-sqlite3` (WAL mode enabled, foreign keys enforced)
-- **Validation**: Zod schema validation for environment configuration and data validation
-- **Testing**: Vitest (134 automated unit, service, integration, and e2e tests)
-- **Messaging**: Meta WhatsApp Cloud API (Graph API v21.0) with offline mock mode
-- **Process & Dev**: Nodemon, Docker multi-stage build
+- **Validation**: Zod schema validation for environment configuration
+- **QR Engine**: CBSL-compliant EMVCo dynamic LankaQR generator with CRC-16/CCITT-FALSE
+- **Testing**: Vitest (159 automated unit, integration, and e2e tests)
+- **Messaging**: Meta WhatsApp Cloud API (Graph API v21.0) with offline simulator mode
+- **Containerization**: Docker multi-stage build
 
 ---
 
 ## 5. Project Structure
 
 ```
-whatsapp-ordering-saas/
+zeylogz-orders/
 ├── src/
 │   ├── server.js                      # HTTP server listener & graceful shutdown (SIGTERM/SIGINT)
-│   ├── app.js                         # Express app setup & middleware mounting
+│   ├── app.js                         # Express app setup, security headers, raw-body middleware
 │   ├── config/
 │   │   └── env.js                     # Zod-validated environment configuration
 │   ├── routes/
@@ -295,41 +175,49 @@ whatsapp-ordering-saas/
 │   │   ├── webhook.routes.js          # GET /webhook (verify), POST /webhook (events)
 │   │   └── dev.routes.js              # POST /api/dev/message (local test endpoint)
 │   ├── controllers/
-│   │   └── webhook.controller.js      # Meta webhook verification & event handler
+│   │   └── webhook.controller.js      # Signature validation, atomic idempotency, tenant routing
 │   ├── services/
-│   │   ├── restaurant.service.js      # Restaurant tenant resolution & order numbers
-│   │   ├── menu.service.js            # Menu categories & item retrieval
-│   │   ├── cart.service.js            # Pure cart logic & DB price validation
+│   │   ├── restaurant.service.js      # Multi-tenant resolution & sequential order numbering
+│   │   ├── menu.service.js            # Menu categories & item retrieval (tenant-scoped)
+│   │   ├── cart.service.js            # Pure cart logic & database price re-validation
 │   │   ├── order.service.js           # Atomic order creation & historical snapshots
 │   │   ├── session.service.js         # Conversation session state & JSON storage
-│   │   ├── conversation.service.js    # Core ordering state machine
+│   │   ├── conversation.service.js    # Core ordering state machine (bilingual)
 │   │   ├── message.formatter.js       # WhatsApp interactive buttons & list formatters
+│   │   ├── lankaqr.service.js         # Central Bank LankaQR EMVCo generator & CRC16
 │   │   └── whatsapp.service.js        # WhatsApp Cloud API client & mock layer
 │   ├── database/
-│   │   ├── db.js                      # SQLite singleton connection & WAL setup
+│   │   ├── db.js                      # SQLite singleton connection, WAL setup, auto-migration
 │   │   ├── schema.sql                 # 8 tables, indexes, CHECK constraints
 │   │   └── seed.js                    # Urban Bites demo data seeder
 │   ├── middleware/
 │   │   └── error.middleware.js        # 404 handler and safe error responses
 │   └── utils/
-│       ├── logger.js                  # Structured logging
-│       └── formatting.js              # LKR currency and order number formatting
+│       ├── logger.js                  # Structured logging with level filtering
+│       ├── formatting.js              # LKR currency and order number formatting
+│       └── i18n.js                    # English & Sinhala dictionary with <=20 char button checks
 ├── tests/
 │   ├── app.test.js                    # Express app & health checks
 │   ├── helpers/
-│   │   └── db.helper.js               # Isolated in-memory database test helper
+│   │   └── db.helper.js               # In-memory database test helper
 │   ├── database/
 │   │   └── database.test.js           # Schema, FK constraints, seed data tests
+│   ├── multitenancy/
+│   │   └── multitenant.test.js        # Strict data isolation & multi-restaurant test
 │   ├── services/
-│   │   ├── restaurant.service.test.js # Restaurant service tests
+│   │   ├── restaurant.service.test.js # Tenant service & order sequence tests
 │   │   ├── menu.service.test.js       # Menu service tests
-│   │   ├── cart.service.test.js       # Cart manipulation & DB validation tests
-│   │   ├── order.service.test.js      # Order processing & price tampering tests
+│   │   ├── cart.service.test.js       # Cart calculation & anti-tampering tests
+│   │   ├── order.service.test.js      # Order processing & transaction tests
 │   │   ├── conversation.service.test.js # State machine transitions tests
+│   │   ├── lankaqr.service.test.js    # EMVCo tags & CRC-16 checksum tests
 │   │   └── whatsapp.service.test.js   # WhatsApp service & webhook parsing tests
 │   ├── routes/
 │   │   ├── dev.routes.test.js         # Local dev API tests
-│   │   └── webhook.routes.test.js     # Meta webhook & idempotency tests
+│   │   └── webhook.routes.test.js     # Meta webhook, security & idempotency tests
+│   ├── utils/
+│   │   ├── formatting.test.js         # Currency and string formatting tests
+│   │   └── i18n.test.js               # Localization & WhatsApp button limit tests
 │   └── e2e/
 │       └── ordering.e2e.test.js       # Complete end-to-end customer order journey
 ├── data/                              # SQLite database storage (gitignored)
@@ -342,35 +230,35 @@ whatsapp-ordering-saas/
 
 ---
 
-## 6. Database Schema
+## 6. Database Schema & Multi-Tenancy
 
-All tables include `restaurant_id` for multi-tenant data isolation.
+Every tenant-owned table is strictly isolated by `restaurant_id`:
 
 | Table | Description |
 |---|---|
-| `restaurants` | Restaurant details, WhatsApp phone number ID, owner number, currency (LKR), delivery fee, order prefix. |
-| `menu_categories` | Menu sections with display order, emoji, and active status. |
-| `menu_items` | Dishes with name, description, price (integer LKR), and availability status. |
+| `restaurants` | Tenant profile, WhatsApp phone number ID, owner number, currency (`LKR`), delivery fee, order prefix (`UB`, `SW`), LankaQR merchant details, city. |
+| `menu_categories` | Menu sections with English/Sinhala names, emoji, display order, and active status. |
+| `menu_items` | Dishes with bilingual names/descriptions, price (integer LKR), and availability. |
 | `customers` | Customers identified by WhatsApp number per restaurant. |
 | `orders` | Placed orders with status (`pending`, `confirmed`, etc.), type (`delivery`, `pickup`, `dine_in`), and totals. |
-| `order_items` | Snapshot of item name and price at time of order creation. |
-| `conversation_sessions` | 24h session state machine tracking customer cart and context JSON. |
-| `processed_messages` | Webhook message IDs tracked for idempotency to prevent duplicate order processing. |
+| `order_items` | Snapshot of item name and unit price at time of order creation. |
+| `conversation_sessions` | 24-hour session tracking state machine, cart, and context JSON. |
+| `processed_messages` | Webhook message IDs tracked for atomic idempotency to prevent duplicate orders. |
 
 ---
 
 ## 7. Local Setup
 
 ### Prerequisites
-- Node.js 18+
-- npm 9+
+- Node.js 20+
+- npm 10+
 
 ### Installation
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/InojBhashitha/whatsapp-ordering-saas.git
-cd whatsapp-ordering-saas
+git clone https://github.com/zeylogz/zeylogz-orders.git
+cd zeylogz-orders
 
 # 2. Install dependencies
 npm install
@@ -378,14 +266,14 @@ npm install
 # 3. Create environment file
 cp .env.example .env
 
-# 4. Seed the database with Urban Bites demo data
+# 4. Seed database with demo restaurant
 npm run seed
 
 # 5. Start the development server
 npm run dev
 ```
 
-The server will start on `http://localhost:3000`.
+The server starts at `http://localhost:3000`.
 
 ---
 
@@ -393,22 +281,22 @@ The server will start on `http://localhost:3000`.
 
 | Variable | Required | Description | Default |
 |---|---|---|---|
-| `PORT` | Optional | Port on which the server listens | `3000` |
+| `PORT` | Optional | HTTP port | `3000` |
 | `NODE_ENV` | Optional | `development`, `test`, or `production` | `development` |
 | `DB_PATH` | Optional | Path to SQLite database file | `./data/ordering.db` |
-| `META_VERIFY_TOKEN` | Production | Secret verification token configured in Meta App dashboard | `your_webhook_verify_token_here` |
-| `META_ACCESS_TOKEN` | Production | System User Access Token from Meta Business Manager | `your_meta_access_token_here` |
-| `META_PHONE_NUMBER_ID` | Production | Phone Number ID from Meta WhatsApp Business settings | `your_phone_number_id_here` |
-| `META_WABA_ID` | Production | WhatsApp Business Account ID | `your_whatsapp_business_account_id_here` |
+| `META_VERIFY_TOKEN` | Production | Verification token configured in Meta App dashboard | `""` |
+| `META_ACCESS_TOKEN` | Production | System User Access Token from Meta Business Manager | `""` |
+| `META_PHONE_NUMBER_ID`| Production | Default Phone Number ID from Meta WhatsApp Business settings | `""` |
+| `META_WABA_ID` | Production | WhatsApp Business Account ID | `""` |
 | `META_GRAPH_API_VERSION`| Optional | Meta Graph API version | `v21.0` |
-| `META_APP_SECRET` | Optional | App secret for SHA256 webhook payload signature verification | `your_meta_app_secret_here` |
+| `META_APP_SECRET` | Optional | App secret for SHA256 webhook payload signature verification | `""` |
 | `LOG_LEVEL` | Optional | `debug`, `info`, `warn`, or `error` | `info` |
 
 ---
 
 ## 9. Running Tests
 
-The test suite runs with Vitest using in-memory databases and mock WhatsApp dispatchers:
+The test suite uses Vitest with in-memory SQLite instances and mock WhatsApp dispatchers:
 
 ```bash
 # Run all tests once
@@ -418,171 +306,119 @@ npm test
 npm run test:watch
 ```
 
-**Test Coverage**: 134 automated tests across 12 test suites verifying every layer of the system.
+**Test Coverage**: 159 automated tests across 15 test suites validating every service, route, calculation, and multi-tenant boundary.
 
 ---
 
-## 10. Running Development Mode (Without Meta Account)
+## 10. Development Simulator (Offline Testing)
 
-You can simulate the entire WhatsApp ordering conversation locally using the development API:
+Test the complete ordering flow locally without sending real WhatsApp messages or consuming API quota:
 
-### 1. Send "Hi"
 ```bash
+# Greet
 curl -X POST http://localhost:3000/api/dev/message \
   -H "Content-Type: application/json" \
-  -d '{
-    "restaurantId": 1,
-    "phoneNumber": "94771234567",
-    "message": "Hi"
-  }'
-```
+  -d '{"restaurantId": 1, "phoneNumber": "94771234567", "message": "Hi"}'
 
-### 2. Click "View Menu"
-```bash
+# Click "View Menu"
 curl -X POST http://localhost:3000/api/dev/message \
   -H "Content-Type: application/json" \
-  -d '{
-    "restaurantId": 1,
-    "phoneNumber": "94771234567",
-    "buttonId": "action_menu"
-  }'
-```
+  -d '{"restaurantId": 1, "phoneNumber": "94771234567", "buttonId": "action_menu"}'
 
-### 3. Select Category (Burgers)
-```bash
+# Select Category (category_1)
 curl -X POST http://localhost:3000/api/dev/message \
   -H "Content-Type: application/json" \
-  -d '{
-    "restaurantId": 1,
-    "phoneNumber": "94771234567",
-    "listRowId": "category_1"
-  }'
-```
+  -d '{"restaurantId": 1, "phoneNumber": "94771234567", "listRowId": "category_1"}'
 
-### 4. Select Item (Classic Beef Burger)
-```bash
+# Select Item (item_1)
 curl -X POST http://localhost:3000/api/dev/message \
   -H "Content-Type: application/json" \
-  -d '{
-    "restaurantId": 1,
-    "phoneNumber": "94771234567",
-    "listRowId": "item_1"
-  }'
-```
+  -d '{"restaurantId": 1, "phoneNumber": "94771234567", "listRowId": "item_1"}'
 
-### 5. Choose Quantity (2)
-```bash
+# Choose Quantity (qty_2)
 curl -X POST http://localhost:3000/api/dev/message \
   -H "Content-Type: application/json" \
-  -d '{
-    "restaurantId": 1,
-    "phoneNumber": "94771234567",
-    "buttonId": "qty_2"
-  }'
-```
+  -d '{"restaurantId": 1, "phoneNumber": "94771234567", "buttonId": "qty_2"}'
 
-### 6. Inspect Session State
-```bash
-curl http://localhost:3000/api/dev/session?restaurantId=1&phoneNumber=94771234567
-```
-
-### 7. Reset Conversation
-```bash
-curl -X POST http://localhost:3000/api/dev/reset \
+# Checkout
+curl -X POST http://localhost:3000/api/dev/message \
   -H "Content-Type: application/json" \
-  -d '{
-    "restaurantId": 1,
-    "phoneNumber": "94771234567"
-  }'
+  -d '{"restaurantId": 1, "phoneNumber": "94771234567", "buttonId": "action_checkout"}'
 ```
 
 ---
 
-## 11. Meta WhatsApp Cloud API Setup
+## 11. Onboarding a Second Restaurant (Multi-Tenant)
 
-When you are ready to connect to a real WhatsApp Business number:
+No code changes are required to onboard new restaurants. Simply insert the restaurant and its menu into the database:
 
-1. **Create a Meta Developer Account**: Go to [developers.facebook.com](https://developers.facebook.com/).
-2. **Create App**: Choose "Business" app type.
-3. **Add WhatsApp Product**: In the dashboard, click "Set up" under WhatsApp.
-4. **Get Credentials**:
-   - In WhatsApp > API Setup, copy your **Phone Number ID** and **WhatsApp Business Account ID**.
-   - Generate a **Permanent System User Access Token** in Meta Business Manager.
-5. **Update `.env`**:
-   ```env
-   META_ACCESS_TOKEN=your_permanent_access_token
-   META_PHONE_NUMBER_ID=your_phone_number_id
-   META_WABA_ID=your_waba_id
-   META_VERIFY_TOKEN=create_a_strong_secret_token_here
-   ```
-6. **Update Demo Restaurant**:
-   Update `whatsapp_phone_number_id` in the `restaurants` table to match your Meta Phone Number ID.
+```sql
+-- 1. Insert Restaurant
+INSERT INTO restaurants (
+  id, name, phone_number, whatsapp_phone_number_id, owner_phone_number,
+  address, city, currency, delivery_fee, order_prefix, lankaqr_enabled,
+  lankaqr_merchant_name, lankaqr_merchant_id, lankaqr_bank_name,
+  lankaqr_account_number, is_active
+) VALUES (
+  2, 'Spicy Wok', '+94812345678', 'REAL_WHATSAPP_PHONE_ID_HERE', '+94719998888',
+  '15 Dalada Veediya, Kandy', 'Kandy', 'LKR', 450, 'SW', 1,
+  'Spicy Wok Kandy', 'SWKANDY01', 'Hatton National Bank', '2000554433', 1
+);
 
----
+-- 2. Insert Categories
+INSERT INTO menu_categories (restaurant_id, name, name_si, emoji, display_order)
+VALUES
+  (2, 'Rice & Noodles', 'බත් සහ නූඩ්ල්ස්', '🍚', 1),
+  (2, 'Beverages', 'පාන වර්ග', '🧃', 2);
 
-## 12. Webhook Setup
-
-1. **Expose your local server** (during development):
-   ```bash
-   ngrok http 3000
-   ```
-2. **Configure in Meta Dashboard**:
-   - Go to WhatsApp > Configuration in your Meta App.
-   - Callback URL: `https://<your-domain-or-ngrok>.ngrok-free.app/webhook`
-   - Verify Token: The string set in `META_VERIFY_TOKEN` in your `.env`.
-   - Click "Verify and Save".
-3. **Subscribe to Webhook Fields**:
-   - In Webhook Fields, subscribe to **`messages`**.
-
----
-
-## 13. Deployment Considerations
-
-### Cloud Hosting & SQLite Persistence
-SQLite stores the database in a local file (`data/ordering.db`).
-- **Persistent Disk Required**: If deploying on platforms like Render, Railway, Fly.io, or AWS EC2/Lightsail, you **MUST attach a persistent volume** to `/app/data`.
-- **Stateless Cloud Warning**: If hosted on ephemeral containers (e.g., vanilla Heroku or serverless Lambda), the database will reset on restart.
-- **Future Migration**: For enterprise horizontal scaling across multiple servers, the database layer can be migrated to PostgreSQL without altering the core state machine or business services.
-
-### Docker Deployment
-
-```bash
-# Build container image
-docker build -t whatsapp-ordering .
-
-# Run with persistent volume
-docker run -d \
-  -p 3000:3000 \
-  -v $(pwd)/data:/app/data \
-  --env-file .env \
-  --name whatsapp-ordering-app \
-  whatsapp-ordering
+-- 3. Insert Menu Items
+INSERT INTO menu_items (restaurant_id, category_id, name, name_si, price, is_available, display_order)
+VALUES
+  (2, 1, 'Nasi Goreng', 'නාසි ගොරෙන්', 1400, 1, 1),
+  (2, 1, 'Chicken Kottu', 'චිකන් කොත්තු', 1100, 1, 2);
 ```
 
----
-
-## 14. Troubleshooting
-
-| Issue | Cause | Solution |
-|---|---|---|
-| `GET /webhook 403` | Verify token mismatch | Ensure `hub.verify_token` sent by Meta matches `META_VERIFY_TOKEN` in `.env`. |
-| Outgoing messages not delivered | Token expired or unverified number | Check Meta token validity in Graph API Explorer. Ensure test recipient numbers are whitelisted in sandbox mode. |
-| Orders not creating | Empty cart or inactive items | Check item availability in `menu_items` table. |
-| Duplicate order on network glitch | Handled automatically | The `processed_messages` table automatically deduplicates incoming Meta webhook events. |
+When WhatsApp sends an incoming message for `REAL_WHATSAPP_PHONE_ID_HERE`, Zeylogz Orders automatically routes the conversation to Spicy Wok, calculates its specific delivery fee, generates order prefix `SW-1001`, and alerts the Spicy Wok owner.
 
 ---
 
-## 15. Future Roadmap
+## 12. Cloud Deployment & Persistent SQLite Storage
 
-- **v1.0 (Current MVP)**: WhatsApp interactive ordering, state machine, cart, delivery/pickup flow, SQLite multi-tenancy.
-- **v2.0**: Restaurant owner web dashboard (order status management, menu editing, business hours).
-- **v3.0**: LankaQR payment slip upload or automated dynamic LankaQR generation.
-- **v4.0**: Customer loyalty points and automated broadcast marketing.
-- **v5.0**: Delivery rider WhatsApp dispatch alerts.
-- **v6.0**: Booking and reservation state machines for salons, doctors, and clinics.
+### Render.com Deployment
+
+1. **Create a Web Service** connected to `zeylogz/zeylogz-orders`.
+2. **Environment Variables**:
+   - `NODE_ENV`: `production`
+   - `PORT`: `3000`
+   - `DB_PATH`: `/var/data/ordering.db`
+   - `META_VERIFY_TOKEN`: `<your-verify-token>`
+   - `META_ACCESS_TOKEN`: `<your-meta-system-user-token>`
+   - `META_PHONE_NUMBER_ID`: `<your-phone-number-id>`
+   - `META_WABA_ID`: `<your-waba-id>`
+   - `META_APP_SECRET`: `<your-app-secret>`
+3. **Attach Persistent Disk (Crucial)**:
+   - In Render Dashboard > Disks:
+   - Click **Add Disk**.
+   - Mount Path: `/var/data`
+   - Size: `1 GB` (sufficient for millions of orders with SQLite).
+   - Setting `DB_PATH=/var/data/ordering.db` ensures data, orders, and sessions are never lost across restarts or redeployments.
+
+---
+
+## 13. Meta WhatsApp Cloud API Setup
+
+1. **Create Meta Business App**: In [developers.facebook.com](https://developers.facebook.com/), create an app of type **Business**.
+2. **Configure WhatsApp**: Under WhatsApp > API Setup, note your **Phone Number ID** and **WABA ID**.
+3. **Webhook URL**:
+   - Callback URL: `https://<your-render-app>.onrender.com/webhook`
+   - Verify Token: Same as `META_VERIFY_TOKEN`.
+   - Subscribe to the **`messages`** webhook field.
+4. **Generate Permanent Access Token**:
+   - In Meta Business Manager > System Users, create a System User with `whatsapp_business_messaging` and `whatsapp_business_management` permissions.
+   - Generate token and save in Render as `META_ACCESS_TOKEN`.
 
 ---
 
 ## License
 
-ISC
+ISC © Zeylogz
