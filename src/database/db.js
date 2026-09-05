@@ -55,6 +55,15 @@ export function initializeSchema(db) {
     if (!columns.includes('meta_access_token')) {
       db.exec("ALTER TABLE restaurants ADD COLUMN meta_access_token TEXT DEFAULT ''");
     }
+
+    // Auto-bind demo restaurant 1 to real Meta Phone Number ID if configured in env
+    if (env.META_PHONE_NUMBER_ID && env.META_PHONE_NUMBER_ID !== 'your_phone_number_id_here' && env.META_PHONE_NUMBER_ID !== 'DEMO_PHONE_NUMBER_ID') {
+      db.prepare(`
+        UPDATE restaurants
+        SET whatsapp_phone_number_id = ?
+        WHERE id = 1 AND whatsapp_phone_number_id = 'DEMO_PHONE_NUMBER_ID'
+      `).run(env.META_PHONE_NUMBER_ID);
+    }
   } catch (err) {
     logger.warn('Schema migration check error', { error: err.message });
   }
